@@ -1,0 +1,73 @@
+import np as np
+
+import tenpy
+import tenpy.linalg.np_conserved
+
+def hilbertschmidt_distance(
+        a:tenpy.linalg.np_conserved.Array, 
+        b:tenpy.linalg.np_conserved.Array):
+    """
+    Calculates the Hilbert Schmidt distance
+    between operators
+    
+    Parameters
+    ----------
+    a, b: tenpy.linalg.np_conserved.Array
+        operators which are used to calculate the
+        Hilbert Schmidt distance
+    
+    Returns
+    -------
+    hsd: float
+        Hilbert Schmidt distance between the two
+        input operators
+    
+    """
+
+    leg_labels_tensor_a:list = a.get_leg_labels()
+    leg_labels_tensor_b:list = b.get_leg_labels()
+    
+    leg_labels_tensor_a.sort()
+    leg_labels_tensor_b.sort()
+    
+    assert(leg_labels_tensor_a == leg_labels_tensor_b)
+    
+    leg_labels_tensor:list = leg_labels_tensor_a
+    
+    rho_diff:tenpy.linalg.np_conserved.Array = (a - b)
+
+    #print("rho_a")
+    #print(rho_a.get_leg_labels())
+    #print("rho_b")
+    #print(rho_b.get_leg_labels())
+    
+    #print("rho_diff")
+    #print(rho_diff.get_leg_labels())
+        
+    ket_leg_labels:list = [l for l in leg_labels_tensor if not l.endswith("*")]
+    bra_leg_labels:list = [l for l in leg_labels_tensor if l.endswith("*")]
+
+    ket_leg_labels.sort()
+    bra_leg_labels.sort()
+
+    n_sites = len(ket_leg_labels)
+
+    #print(n_sites)
+    #print(ket_leg_labels)
+    #print(bra_leg_labels)
+    
+    rho_diff_sq:tenpy.linalg.np_conserved.Array = \
+        tenpy.linalg.np_conserved.tensordot(rho_diff, 
+                                            rho_diff, 
+                                            axes=(bra_leg_labels, ket_leg_labels))
+
+    tensor_traced = rho_diff_sq
+
+    for ix_site in range(n_sites):
+        #print(ix_site)
+        #print("Before", type(tensor_traced))
+        tensor_traced = tenpy.linalg.np_conserved.trace(tensor_traced, leg1=ket_leg_labels[ix_site], leg2=bra_leg_labels[ix_site])
+        #print("After", type(tensor_traced))
+
+    hsd = np.abs(tensor_traced)
+    return hsd
