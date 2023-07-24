@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
     algorithm = np.random.choice(['TEBD', 'TEBD'])
 
-    n_spins:int = 81
+    n_spins:int = 60
 
     logging.info("Using tenpy version %s" % (tenpy.__version__))
     string_desc = "%s_sfim_nspins=%d" % (algorithm, n_spins)
@@ -166,14 +166,14 @@ if __name__ == '__main__':
         logging.info("param_dict = %s" % param_dict)
         
         filename_index = os.path.join(
-                "pkl", "index", "%s.pkl" % (string_uuid_bonddim,))
+             "..", "..", "pkl", "index", "%s.pkl" % (string_uuid_bonddim,))
         with open(filename_index, "wb") as iofile:
             pickle.dump(param_dict, iofile)
 
         logging.info("Saving MPS")
 
         filename_mps_df = os.path.join(
-            "pkl", "mps", "%s_mpsHistory.pkl" % (string_uuid_bonddim,))
+            "..", "..", "pkl", "mps", "%s_mpsHistory.pkl" % (string_uuid_bonddim,))
         with open(filename_mps_df, "wb") as iofile:
             pickle.dump(df_mps, iofile)
 
@@ -182,17 +182,4 @@ if __name__ == '__main__':
     walltime_end:float = time.time()
     walltime_duration:float = walltime_end - walltime_begin
     logging.info("Time taken = %g s" % (walltime_duration))
-
-    for ix_bonddim in range(n_bonddims):
-        df = df_mps[ix_bonddim]
-        df["bonddim"] = [bonddim_list[ix_bonddim] for _ in range(n_steps)]
-
-    df_mps_all = pandas.concat(df_mps, ignore_index=True)
-    logging.info("df_mps_all = \n%s", (df_mps_all))
-
-    logging.info("Saving MPS")
-    filename_mps_df = os.path.join(
-        "pkl", "mps", "%s_mpsHistory.pkl" % (string_uuid_simulation))
-    with open(filename_mps_df, "wb") as iofile:
-        pickle.dump(df_mps_all, iofile)
 
