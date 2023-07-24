@@ -1,10 +1,13 @@
 import numpy as np
-import itertools
 
 import uuid
 import time
 import itertools
 import logging
+import os
+import pickle
+import pandas
+import sqlite3
 
 import tenpy
 import tenpy.models
@@ -13,175 +16,97 @@ import tenpy.simulations
 import tenpy.networks
 import tenpy.networks.site
 
-import sqlite3
-
-logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s: %(levelname)s: %(message)s',
+        level=logging.INFO)
 
 import sys
 sys.path.append("../src")
 logging.info(sys.path)
 
-from wrap_tenpy.TenPy_OnlineCompress import *
+import config
 from wrap_tenpy.distancemeasures import hilbertschmidt_distance
 
 ####################################################################################################
 if __name__ == '__main__':
-    string_date:str = "2023-058_13-37-35"
-    n_spins:int = 20
 
-    string_date:str = "a33cdc3b-dd7b-4ad5-aaa2-79bd3d4f0969"
-    string_date:str = sys.argv[1]
-    n_spins:int = 40
-
-    logging.info("string_date = %s" % (string_date,))
-    logging.info("n_spins = %d" % (n_spins,))
+    try:
+        string_uuid_a:str = sys.argv[1]
+        string_uuid_b:str = sys.argv[2]
     
-    filename_mps_df = "pkl/mps/%s_tebd_mps.pkl" % (string_date)
+        bonddim_a:int = int(sys.argv[3])
+        bonddim_b:int = int(sys.argv[4])
+    
+        n_spins:int = int(sys.argv[5])
+        size_marginal:int = int(sys.argv[6])
+
+    except Exception as e:
+        print("Usage: %s <uuid_a> <uuid_b> <bonddim_a> <bonddim_b>" + \
+            "<n_spins> <marginal_size>"\
+                % (sys.argv[0],))
+
+        exit(-1)
+
+    logging.info("config.data_directory = %s" % (config.data_directory))
+    logging.info("config.index_directory = %s" % (config.index_directory))
+    logging.info("config.reducedstate_directory = %s" % (config.reducedstate_directory))
+    logging.info("config.mps_directory = %s" % (config.mps_directory))
+    
+    logging.info("string_uuid_a = %s" % (string_uuid_a,))
+    logging.info("string_uuid_b = %s" % (string_uuid_b,))
+    logging.info("bonddim_a = %s" % (bonddim_a,))
+    logging.info("bonddim_b = %s" % (bonddim_b,))
+    logging.info("n_spins = %d" % (n_spins,))
+
+    filename_df_a = os.path.join(
+            config.reducedstate_directory, "%s_%d-spin.pkl" % \
+                    (string_uuid_a, size_marginal))
+
+    filename_df_b = os.path.join(
+            config.reducedstate_directory, "%s_%d-spin.pkl" % \
+                    (string_uuid_b, size_marginal))
 
     READ_FLAGS = "rb"
-    
-    with open(filename_mps_df, READ_FLAGS) as iofile:
-        df_mps_all = pickle.load(iofile)
+
+    with open(filename_df_a, READ_FLAGS) as iofile:
+        df_a = pickle.load(iofile)
         
-    logging.info("df_mps_all = \n%s" % (df_mps_all,))
-
-    bonddim_list = df_mps_all["bonddim"].sort_values().unique()
-    ix_time_list = df_mps_all["ix_time"].sort_values().unique()
-    time_list = df_mps_all["time"].sort_values().unique()
-
-    logging.info("bonddim_list = %s" % bonddim_list)
-    logging.info("ix_time_list = %s" % ix_time_list)
-
-    if False:
-        df_1spin_expect = df_mps_all[df_mps_all.columns.drop("mps").drop("walltime")]
-        mps = df_mps_all["mps"]
-
-        walltime_begin = time.time()
-    
-        expect_zz = mps.apply(lambda s: s.correlation_function("Sigmaz", "Sigmaz"))
-        #expect_x = mps.apply(lambda s: s.expectation_value("Sigmax"))
-        #expect_y = mps.apply(lambda s: s.expectation_value("Sigmay"))
-        #expect_z = mps.apply(lambda s: s.expectation_value("Sigmaz"))
-
-        walltime_end = time.time()
-        walltime_duration = walltime_end - walltime_begin
-        logging.info("Time taken = %g s" % (walltime_duration))
-
-        #df_1spin_expect["expect_x"] = expect_x
-        #df_1spin_expect["expect_y"] = expect_y
-        df_1spin_expect["expect_zz"] = expect_zz
+    with open(filename_df_b, READ_FLAGS) as iofile:
+        df_b = pickle.load(iofile)
         
-        logging.info("df_1spin_expect = \n%s" % (df_1spin_expect))
-        
-        WRITE_FLAGS = "wb"
+    logging.info("df_a = \n%s" % (df_a,))
+    logging.info("df_b = \n%s" % (df_b,))
 
-        filename_mps_df = "pkl/expectation/%s_tebd_2spin.pkl" % (string_date)
-        with open(filename_mps_df, WRITE_FLAGS) as iofile:
-            pickle.dump(df_1spin_expect, iofile)
-            
-            logging.info("Comparing")
+    logging.info("Comparing bonddim = %d with bonddim = %d" % \
+            (bonddim_a, bonddim_b))
 
-            for bonddim_low, bonddim_high in zip(bonddim_list[:-1], bonddim_list[1:]):
+    walltime_begin:float = time.time()
 
-                df_low = df_1spin_expect[df_1spin_expect["bonddim"] == bonddim_low]
-                df_high = df_1spin_expect[df_1spin_expect["bonddim"] == bonddim_high]
+    entries_hsd = []
+    for entry_a, entry_b in zip(df_a.itertuples(), df_b.itertuples()):
+       
+        rho_a = entry_a.rho
+        rho_b = entry_b.rho
 
-                expect_low = df_low["expect_z"].to_numpy()
-                expect_high = df_high["expect_z"].to_numpy()
-        
-                expect_diff_sq = (expect_high - expect_low)**2
-        
-                logging.info("bonddim_low = %d" % bonddim_low)
-                logging.info("bonddim_high = %d" % bonddim_high)
-                logging.info("expect_diff_sq = %s" % (expect_diff_sq))
-            
-    logging.info("Evaluating 1-spin reduced density operators")
-    
-    walltime_begin = time.time()
-    rows_1spin_reduced_dm = []
+        sqhsd = hilbertschmidt_distance(rho_a, rho_b)
 
-    sites_sel_list = [s for s in itertools.combinations(range(n_spins), 2)]
-    logging.info("sites_set_list = %s" % sites_sel_list)
-    
-    for row_iteration in df_mps_all.itertuples():
-        for sites_sel in sites_sel_list:
+        entry_current = {
+            'ix_time_a': entry_a.ix_time,
+            'time_a': entry_a.time,
+            'ix_time_b': entry_b.ix_time,
+            'time_b': entry_b.time,
+            'sites_sel_a': entry_a.sites_sel,
+            'sites_sel_b': entry_b.sites_sel,
+            'bonddim_a': bonddim_a,
+            'bonddim_b': bonddim_b,
+            'sqhsd': sqhsd,
+         }
 
-            logging.info("Reduced state for %s in %d at ix_time = %d" \
-                         % (sites_sel, n_spins, row_iteration.ix_time))
-            mps = row_iteration.mps
+        entries_hsd.append(entry_current)
 
-            rho = mps.get_rho_segment(sites_sel)
+    df_hsd = pandas.DataFrame(entries_hsd)
 
-            row_created = {
-                "ix_time": row_iteration.ix_time,
-                "time": row_iteration.ix_time,
-                "bonddim": row_iteration.bonddim,
-                "sites_sel": sites_sel,
-                "rho": rho,
-            }
+    logging.info("df_hsd = \n%s" % (df_hsd.sort_values(by='sites_sel_a'),))
 
-            rows_1spin_reduced_dm.append(row_created)
-            
-    df_1spin_reduced_dm = pandas.DataFrame(rows_1spin_reduced_dm)
-
-    walltime_end = time.time()
-    walltime_duration = walltime_end - walltime_begin
+    walltime_end:float = time.time()
+    walltime_duration:float = walltime_end - walltime_begin
     logging.info("Time taken = %g s" % (walltime_duration))
-
-    logging.info(df_1spin_reduced_dm)
-
-    logging.info("Comparing")
-
-    rows_hsd = []
-    for bonddim_low, bonddim_high in zip(bonddim_list[:-1], bonddim_list[1:]):
-        for sites_sel in sites_sel_list:
-
-            df_low = df_1spin_reduced_dm[ \
-                                          (df_1spin_reduced_dm["bonddim"] == bonddim_low) & \
-                                          (df_1spin_reduced_dm["sites_sel"] == sites_sel) \
-                                         ]
-            df_high = df_1spin_reduced_dm[ \
-                                           (df_1spin_reduced_dm["bonddim"] == bonddim_high) & \
-                                           (df_1spin_reduced_dm["sites_sel"] == sites_sel) \
-                                          ]
-        
-            rho_low_list = df_low["rho"].to_numpy()
-            rho_high_list = df_high["rho"].to_numpy()
-        
-            for ix_time in ix_time_list:
-            
-                rho_low = rho_low_list[ix_time]
-                rho_high = rho_high_list[ix_time]
-
-                hsd = hilbertschmidt_distance(rho_low, rho_high)
-                
-                # Saving sites_sel as a single value for compability with SQL
-                # Only works for 1-spin reduced density operators
-                row_created = {
-                    "ix_time": ix_time,
-                    "time": time_list[ix_time],
-                    "bonddim_low": bonddim_low,
-                    "bonddim_high": bonddim_high,
-                    "sites_sel": "%s" % (sites_sel,),
-                    "hsd": hsd,
-                }
-
-                rows_hsd.append(row_created)
-
-            logging.info("bonddim_low = %d" % bonddim_low)
-            logging.info("bonddim_high = %d" % bonddim_high)
-            logging.info("sites_sel = %s" % (sites_sel,))
-
-    df_hsd = pandas.DataFrame(rows_hsd)
-
-    logging.info("df_hsd = \n%s" % df_hsd)
-    logging.info("Maximum hsd = %d" % np.max(df_hsd["hsd"]))
-    logging.info("at \n%s" % \
-                 df_hsd[df_hsd["hsd"] == np.max(df_hsd["hsd"])])
-
-    logging.info("Saving to SQL database")
-    connection = sqlite3.connect("hsd.db")
-    df_hsd.to_sql("HSD", connection, if_exists="replace")
-
-    connection.close()
-    logging.info("Saved to SQL database")
