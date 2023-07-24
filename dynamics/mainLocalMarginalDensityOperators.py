@@ -1,10 +1,12 @@
 import numpy as np
-import itertools
 
 import uuid
 import time
 import itertools
 import logging
+import os
+import pickle
+import pandas
 
 import tenpy
 import tenpy.models
@@ -19,37 +21,52 @@ import sys
 sys.path.append("../src")
 logging.info(sys.path)
 
-from wrap_tenpy.TenPy_OnlineCompress import *
-from wrap_tenpy.distancemeasures import hilbertschmidt_distance
-
 ####################################################################################################
 if __name__ == '__main__':
 
-    string_date:str = "2023-058_13-37-35"
-    n_spins:int = 20
+    string_uuid:str = "9614407d-abe5-493d-9706-282c7abcf103"
+    n_spins:int = 60
+    bonddim:int = 8
 
-    string_date:str = "2023-088_20-20-15"
-    n_spins:int = 80
+    string_uuid:str = "0327fe2f-e4a6-4fdf-94a7-d873217773c0"
+    n_spins:int = 60
+    bonddim:int = 16
 
-    string_date:str = "a33cdc3b-dd7b-4ad5-aaa2-79bd3d4f0969"
-    n_spins:int = 40
+    string_uuid:str = "cd12d3c8-899b-43b0-840d-7ef82bf091f7"
+    n_spins:int = 60
+    bonddim:int = 36
 
-    size_marginal:int = 1
+    string_uuid:str = "c1154729-dc58-4af6-b32e-c720cd91c870"
+    n_spins:int = 60
+    bonddim:int = 64
+    
+    string_uuid:str = "65e0fe33-0e7f-4631-aa67-7cf4f8c00ab1"
+    n_spins:int = 60
+    bonddim:int = 128
 
-    filename_mps_df = "pkl/mps/%s_tebd_mps.pkl" % (string_date)
+    string_uuid:str = "00d4943e-75a3-4107-ad9b-52c3de267a68"
+    n_spins:int = 60
+    bonddim:int = 256
+    
+    size_marginal:int = 2
+
+    filename_mps_df = os.path.join(
+            "..", "..", "pkl", "mps", "%s_mpsHistory.pkl" % (string_uuid,))
 
     READ_FLAGS = "rb"
 
     with open(filename_mps_df, READ_FLAGS) as iofile:
         df_mps_all = pickle.load(iofile)
 
+    ## This is a bit of a hack. `df_mps_all` is a `numpy.ndarray` of `pandas.DataFrame` with only
+    ## one element. I may need to change the way I save the MPS history.
+    df_mps_all = df_mps_all[0]
+
     logging.info("df_mps_all = \n%s" % (df_mps_all,))
 
-    bonddim_list = df_mps_all["bonddim"].sort_values().unique()
     ix_time_list = df_mps_all["ix_time"].sort_values().unique()
     time_list = df_mps_all["time"].sort_values().unique()
 
-    logging.info("bonddim_list = %s" % bonddim_list)
     logging.info("ix_time_list = %s" % ix_time_list)
 
     logging.info("Evaluating %d-spin reduced density operators" % (size_marginal))
@@ -63,8 +80,8 @@ if __name__ == '__main__':
     for row_iteration in df_mps_all.itertuples():
         for sites_sel in sites_sel_list:
 
-            logging.info("Reduced state from bonddim=%d for %s in %d at ix_time = %d" \
-                         % (row_iteration.bonddim, sites_sel, n_spins, row_iteration.ix_time))
+            logging.info("Reduced state from bonddim = %d for %s in %d at ix_time = %d" \
+                         % (bonddim, sites_sel, n_spins, row_iteration.ix_time))
             mps = row_iteration.mps
 
             rho = mps.get_rho_segment(sites_sel)
@@ -72,7 +89,7 @@ if __name__ == '__main__':
             row_created = {
                 "ix_time": row_iteration.ix_time,
                 "time": row_iteration.ix_time,
-                "bonddim": row_iteration.bonddim,
+                "bonddim": bonddim,
                 "sites_sel": sites_sel,
                 "rho": rho,
             }
@@ -88,7 +105,9 @@ if __name__ == '__main__':
 
     WRITE_FLAGS = "wb"
     logging.info("Saving %d-spin marginals" % (size_marginal))
-    filename_df = "pkl/marginals/%s_%d-spin.pkl" % (string_date, size_marginal)
+    filename_df = os.path.join(
+            "..", "..", "pkl", "marginals", "%s_%d-spin.pkl" % (string_uuid, size_marginal))
+
     with open(filename_df, "wb") as iofile:
         pickle.dump(df_reduced_dm, iofile)
 
