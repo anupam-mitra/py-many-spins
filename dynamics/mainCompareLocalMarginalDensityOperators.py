@@ -87,25 +87,45 @@ if __name__ == '__main__':
         rho_a = entry_a.rho
         rho_b = entry_b.rho
 
-        sqhsd = hilbertschmidt_distance(rho_a, rho_b)
+        sqhsd_a_b = hilbertschmidt_distance(rho_a, rho_b)
+
+        if size_marginal == 1:
+            rho_maxmix = tenpy.linalg.np_conserved.Array.from_ndarray_trivial(
+                np.asarray([[0.5, 0], [0, 0.5]]), labels=['p0', 'p0*'])
+        elif size_marginal == 2:
+            rho_maxmix_ndarray = np.zeros((2, 2, 2, 2))
+            rho_maxmix_ndarray[0, 0, 0, 0] = 0.25
+            rho_maxmix_ndarray[1, 1, 0, 0] = 0.25
+            rho_maxmix_ndarray[0, 0, 1, 1] = 0.25
+            rho_maxmix_ndarray[1, 1, 1, 1] = 0.25
+
+            rho_maxmix = tenpy.linalg.np_conserved.Array.from_ndarray_trivial(
+                rho_maxmix_ndarray, labels=['p0', 'p1', 'p0*', 'p1*'])
+
+        sqhsd_a_maxmix = hilbertschmidt_distance(rho_a, rho_maxmix)
+        sqhsd_b_maxmix = hilbertschmidt_distance(rho_b, rho_maxmix)
 
         entry_current = {
             'ix_time_a': entry_a.ix_time,
             'time_a': entry_a.time,
             'ix_time_b': entry_b.ix_time,
             'time_b': entry_b.time,
-            'sites_sel_a': entry_a.sites_sel,
-            'sites_sel_b': entry_b.sites_sel,
+            'sites_sel_a': entry_a.sites_sel_int,
+            'sites_sel_b': entry_b.sites_sel_int,
             'bonddim_a': bonddim_a,
             'bonddim_b': bonddim_b,
-            'sqhsd': sqhsd,
+            'sqhsd_a_b': sqhsd_a_b,
+            'sqhsd_a_maxmix': sqhsd_a_maxmix,
+            'sqhsd_b_maxmix': sqhsd_a_maxmix
          }
 
         entries_hsd.append(entry_current)
 
     df_hsd = pandas.DataFrame(entries_hsd)
 
-    logging.info("df_hsd = \n%s" % (df_hsd.sort_values(by='sites_sel_a'),))
+    logging.info("df_hsd = \n%s" % (df_hsd.sort_values(by='sqhsd_a_maxmix'),))
+
+    df_hsd.to_csv("sqhsd.csv")
 
     walltime_end:float = time.time()
     walltime_duration:float = walltime_end - walltime_begin
