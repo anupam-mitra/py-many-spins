@@ -15,11 +15,38 @@ import tenpy.simulations
 import tenpy.networks
 import tenpy.networks.site
 
-logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s: %(levelname)s: %(message)s',
+        level=logging.DEBUG)
 
 import sys
 sys.path.append("../src")
 logging.info(sys.path)
+
+import config
+
+####################################################################################################
+def tuple_to_bitstring(t, length_bitstring):
+    """
+    Parameters
+    ----------
+    t: 
+    tuple with positions of bits to be set to 1
+
+    length_bitstring:
+    Length of the bitstring to generate
+    """
+
+    bitlist = ['0' for _ in range(length_bitstring)]
+
+    for ix in t:
+        bitlist[ix] = '1'
+
+    bitlist.reverse()
+    bitstring = ''.join([b for b in bitlist])
+ 
+    bitinteger = int(bitstring, base=2)
+
+    return bitinteger
 
 ####################################################################################################
 if __name__ == '__main__':
@@ -39,19 +66,19 @@ if __name__ == '__main__':
     string_uuid:str = "c1154729-dc58-4af6-b32e-c720cd91c870"
     n_spins:int = 60
     bonddim:int = 64
-    
-    string_uuid:str = "65e0fe33-0e7f-4631-aa67-7cf4f8c00ab1"
-    n_spins:int = 60
-    bonddim:int = 128
 
     string_uuid:str = "00d4943e-75a3-4107-ad9b-52c3de267a68"
     n_spins:int = 60
     bonddim:int = 256
     
-    size_marginal:int = 2
+    string_uuid:str = "65e0fe33-0e7f-4631-aa67-7cf4f8c00ab1"
+    n_spins:int = 60
+    bonddim:int = 128
+
+    size_marginal:int = 1
 
     filename_mps_df = os.path.join(
-            "..", "..", "pkl", "mps", "%s_mpsHistory.pkl" % (string_uuid,))
+            config.mps_directory, "%s_mpsHistory.pkl" % (string_uuid,))
 
     READ_FLAGS = "rb"
 
@@ -91,6 +118,7 @@ if __name__ == '__main__':
                 "time": row_iteration.ix_time,
                 "bonddim": bonddim,
                 "sites_sel": sites_sel,
+                "sites_sel_int": tuple_to_bitstring(sites_sel, n_spins),
                 "rho": rho,
             }
 
@@ -106,7 +134,7 @@ if __name__ == '__main__':
     WRITE_FLAGS = "wb"
     logging.info("Saving %d-spin marginals" % (size_marginal))
     filename_df = os.path.join(
-            "..", "..", "pkl", "marginals", "%s_%d-spin.pkl" % (string_uuid, size_marginal))
+            config.reducedstate_directory, "%s_%d-spin.pkl" % (string_uuid, size_marginal))
 
     with open(filename_df, "wb") as iofile:
         pickle.dump(df_reduced_dm, iofile)
