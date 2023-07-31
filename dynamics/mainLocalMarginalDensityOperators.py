@@ -75,6 +75,10 @@ if __name__ == '__main__':
     n_spins:int = 60
     bonddim:int = 128
 
+    string_uuid:str = "00d4943e-75a3-4107-ad9b-52c3de267a68"
+    n_spins:int = 60
+    bonddim:int = 256
+
     size_marginal:int = 1
 
     filename_mps_df = os.path.join(
@@ -110,7 +114,7 @@ if __name__ == '__main__':
             logging.info("Reduced state from bonddim = %d for %s in %d at ix_time = %d" \
                          % (bonddim, sites_sel, n_spins, row_iteration.ix_time))
             mps = row_iteration.mps
-
+            logging.info("mps.chi = %s" % (mps.chi))
             rho = mps.get_rho_segment(sites_sel)
 
             row_created = {
