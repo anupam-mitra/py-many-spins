@@ -50,36 +50,27 @@ def tuple_to_bitstring(t, length_bitstring):
 
 ####################################################################################################
 if __name__ == '__main__':
-
-    string_uuid:str = "9614407d-abe5-493d-9706-282c7abcf103"
     n_spins:int = 60
-    bonddim:int = 8
 
-    string_uuid:str = "0327fe2f-e4a6-4fdf-94a7-d873217773c0"
-    n_spins:int = 60
-    bonddim:int = 16
-
-    string_uuid:str = "cd12d3c8-899b-43b0-840d-7ef82bf091f7"
-    n_spins:int = 60
-    bonddim:int = 36
-
-    string_uuid:str = "c1154729-dc58-4af6-b32e-c720cd91c870"
-    n_spins:int = 60
-    bonddim:int = 64
-
-    string_uuid:str = "00d4943e-75a3-4107-ad9b-52c3de267a68"
-    n_spins:int = 60
+    string_uuid:str = "305a3b4a-8abe-41b1-a130-5084a5a29151"
     bonddim:int = 256
     
-    string_uuid:str = "65e0fe33-0e7f-4631-aa67-7cf4f8c00ab1"
-    n_spins:int = 60
+    string_uuid:str = "165236ce-d7d7-4b74-ac31-52fd54384335"
     bonddim:int = 128
+    
+    string_uuid:str = "079a0881-3a7f-4803-b018-59c9e6e4c0e2"
+    bonddim:int = 64
+    
+    string_uuid:str = "8cbb6b94-ea57-42b7-865a-8638ceef4ec9"
+    bonddim:int = 32
+    
+    string_uuid:str = "f9d94016-212d-4a93-8407-52819cdb9a5d"
+    bonddim:int = 8
+    
+    string_uuid:str = "553055ff-9d26-41c4-90db-5403a7170b4b"
+    bonddim:int = 16
 
-    string_uuid:str = "00d4943e-75a3-4107-ad9b-52c3de267a68"
-    n_spins:int = 60
-    bonddim:int = 256
-
-    size_marginal:int = 1
+    size_marginal:int = 2
 
     filename_mps_df = os.path.join(
             config.mps_directory, "%s_mpsHistory.pkl" % (string_uuid,))
