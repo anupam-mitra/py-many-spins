@@ -93,16 +93,22 @@ class TEBDWrapper:
 
         logging.info("Created TEBD object with \n tebd_params = %s" % (self.tebd_params))
 
+        self.mps_list = []
         self.rows = []
 
     def evolve(self):
-
+        """
+        Calculate time evolution of the matrix product state.
+        """
         self.rows += [{
             "ix_time": 0,
-            "time": 0,
+            "time": self.tlist[0],
+            "bonddim":self.compress_params.get("chi_max"),
+            "uuid_str": "%s" % uuid.uuid4(),
             "mps": self.mps_in.copy(),
             #"walltime": time.time()
         }]
+        self.mps_list.append(mps_in)
 
         logging.info("Calculating state at self.tlist[ix_time=%d] = %g" % (0, self.tlist[0]))
 
@@ -117,22 +123,27 @@ class TEBDWrapper:
             row = {
                 "ix_time": ix_time,
                 "time": self.tlist[ix_time],
+                "bonddim":self.compress_params.get("chi_max"),
+                "uuid_str": "%s" % uuid.uuid4(),
                 "mps": mps_current.copy(),
                 #"walltime": time.time()
             }
 
-            self.rows += [row]
+            self.mps_list.append(mps_current.copy())
+            self.rows.append(row)
             logging.info("mps.chi = %s" % (mps_current.chi))
             
     def get_mps_history_df(self):
+        """
+        Returns the mps history index in an object of type `pandas.DataFrame`
+        """
 
         if not hasattr(self, "df"):
             self.df = pandas.DataFrame(self.rows)
 
-        return self.df
-
-
+        return self.df, self.mps_list
 ######################################################################################
+
 ######################################################################################
 class TDVPWrapper:
     def __init__(self, model, mps_in, tlist,
