@@ -122,7 +122,8 @@ class TEBDWrapper:
             }
 
             self.rows += [row]
-
+            logging.info("mps.chi = %s" % (mps_current.chi))
+            
     def get_mps_history_df(self):
 
         if not hasattr(self, "df"):
