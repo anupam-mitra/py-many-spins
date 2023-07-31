@@ -105,8 +105,7 @@ class TEBDWrapper:
             "time": self.tlist[0],
             "bonddim":self.compress_params.get("chi_max"),
             "uuid_str": "%s" % uuid.uuid4(),
-            "mps": self.mps_in.copy(),
-            #"walltime": time.time()
+            "walltime": time.time()
         }]
         self.mps_list.append(mps_in)
 
@@ -125,8 +124,7 @@ class TEBDWrapper:
                 "time": self.tlist[ix_time],
                 "bonddim":self.compress_params.get("chi_max"),
                 "uuid_str": "%s" % uuid.uuid4(),
-                "mps": mps_current.copy(),
-                #"walltime": time.time()
+                "walltime": time.time()
             }
 
             self.mps_list.append(mps_current.copy())
