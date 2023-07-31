@@ -122,7 +122,7 @@ if __name__ == '__main__':
             "trunc_params" : trunc_params,
         }
 
-    bonddim_list:np.ndarray = np.logspace(3, 8, 6, base=2, dtype=int)
+    bonddim_list:np.ndarray = np.array([128])
     n_bonddims:int = len(bonddim_list)
     logging.info(bonddim_list)
 
@@ -142,12 +142,14 @@ if __name__ == '__main__':
                                            trotter_params, trunc_params)
             wrap.evolve()
             evolve_wrappers[ix_bonddim] = wrap
+            logging.info("wrap = %s" % (wrap))
 
         elif algorithm == 'TDVP':
             wrap:TDVPWrapper = TDVPWrapper(sfim, mps_in, t_list, 
                                            trunc_params, tdvp_params)
             wrap.evolve()
             evolve_wrappers[ix_bonddim] = wrap
+            logging.info("wrap = %s" % (wrap))
 
         df_mps[ix_bonddim] = evolve_wrappers[ix_bonddim].get_mps_history_df()
 
