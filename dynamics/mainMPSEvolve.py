@@ -34,6 +34,21 @@ from wrap_tenpy.timeevolution import TEBDWrapper, TDVPWrapper, spinhalf_state
 
 ####################################################################################################
 if __name__ == '__main__':
+    
+    argument_parser = argparse.ArgumentParser(
+        prog="tebdmain.py",
+        description="Calculates time evolution of a matrix product state using TEBD.",
+        epilog=""
+    )
+
+    argument_parser.add_argument("--systemsize", type=int)
+    argument_parser.add_argument("--bonddim", type=int)
+
+    args = argument_parser.parse_args()
+    logging.info("Input arguments = %s" % vars(args))
+
+    n_spins:int = args.systemsize 
+    bonddim:int = args.bonddim
 
     string_start_date = time.strftime("%Y-%j_%H-%M-%S", time.localtime())
     string_uuid_simulation = '%s' % uuid.uuid4()
@@ -42,8 +57,6 @@ if __name__ == '__main__':
     logging.info("uuid = %s" % (string_uuid_simulation,))
 
     algorithm = np.random.choice(['TEBD', 'TEBD'])
-
-    n_spins:int = 60
 
     logging.info("Using tenpy version %s" % (tenpy.__version__))
     string_desc = "%s_sfim_nspins=%d" % (algorithm, n_spins)
