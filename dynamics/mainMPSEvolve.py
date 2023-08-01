@@ -24,8 +24,7 @@ sys.path.append("../src")
 logging.info(sys.path)
 
 ### TODO ###
-### 1. [DONE] Rename the module `TenPy_OnlineCompress` to something better,
-### 2. Refactor the time evolution wrappers for `tenpy.algorithms.tdvp.TwoSiteTDVPEngine`
+### 1. Refactor the time evolution wrappers for `tenpy.algorithms.tdvp.TwoSiteTDVPEngine`
 ###    and `tenpy.algorithms.tdvp.TEBDEngine`, which are currently the classes
 ###    `TenPy_OnlineCompress.TDVPWrapper` and `TenPy.OnlineCompress.TEBDWrapper`
 ###    respectively.
