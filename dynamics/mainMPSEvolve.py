@@ -29,7 +29,7 @@ import config
 ### TODO ###
 ### 1. Refactor the time evolution wrappers for `tenpy.algorithms.tdvp.TwoSiteTDVPEngine`
 ###    and `tenpy.algorithms.tdvp.TEBDEngine`, which are currently the classes
-###    `TenPy_OnlineCompress.TDVPWrapper` and `TenPy.OnlineCompress.TEBDWrapper`
+###    `timeevolution.TDVPWrapper` and `timeevolution.TEBDWrapper`
 ###    respectively.
 
 from wrap_tenpy.timeevolution import TEBDWrapper, TDVPWrapper, spinhalf_state
