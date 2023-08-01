@@ -24,6 +24,8 @@ import sys
 sys.path.append("../src")
 logging.info(sys.path)
 
+import config.py
+
 ### TODO ###
 ### 1. Refactor the time evolution wrappers for `tenpy.algorithms.tdvp.TwoSiteTDVPEngine`
 ###    and `tenpy.algorithms.tdvp.TEBDEngine`, which are currently the classes
@@ -180,14 +182,14 @@ if __name__ == '__main__':
         logging.info("param_dict = %s" % param_dict)
         
         filename_index = os.path.join(
-             "..", "..", "pkl", "index", "%s.pkl" % (string_uuid_bonddim,))
+             config.index_directory, "%s.pkl" % (string_uuid_bonddim,))
         with open(filename_index, "wb") as iofile:
             pickle.dump(param_dict, iofile)
 
         logging.info("Saving MPS")
 
         filename_mps_df = os.path.join(
-            "..", "..", "pkl", "mps", "%s_mpsHistory.pkl" % (string_uuid_bonddim,))
+            config.mps_directory, "%s_mpsHistory.pkl" % (string_uuid_bonddim,))
         with open(filename_mps_df, "wb") as iofile:
             pickle.dump(df_mps, iofile)
 
