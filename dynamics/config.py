@@ -1,6 +1,6 @@
 import os
 
-data_directory = os.path.join("..", "..", "pkl")
+data_directory = os.path.join("..", "pkl")
 mps_directory = os.path.join(data_directory, "mps")
 marginal_directory = os.path.join(data_directory, "marginals")
 index_directory = os.path.join(data_directory, "index")
