@@ -107,7 +107,7 @@ class TEBDWrapper:
             "uuid_str": "%s" % uuid.uuid4(),
             "walltime": time.time()
         }]
-        self.mps_list.append(mps_in)
+        self.mps_list.append(self.mps_in)
 
         logging.info("Calculating state at self.tlist[ix_time=%d] = %g" % (0, self.tlist[0]))
 
