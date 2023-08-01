@@ -129,7 +129,7 @@ if __name__ == '__main__':
     WRITE_FLAGS = "wb"
     logging.info("Saving %d-spin marginals" % (size_marginal))
     filename_df = os.path.join(
-            config.reducedstate_directory, "%s_%d-spin.pkl" % (string_uuid, size_marginal))
+            config.marginal_directory, "%s_%d-spin.pkl" % (string_uuid, size_marginal))
 
     with open(filename_df, "wb") as iofile:
         pickle.dump(df_reduced_dm, iofile)
