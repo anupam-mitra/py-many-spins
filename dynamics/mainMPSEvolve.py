@@ -24,7 +24,7 @@ import sys
 sys.path.append("../src")
 logging.info(sys.path)
 
-import config.py
+import config
 
 ### TODO ###
 ### 1. Refactor the time evolution wrappers for `tenpy.algorithms.tdvp.TwoSiteTDVPEngine`
