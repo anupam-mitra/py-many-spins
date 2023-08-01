@@ -18,7 +18,7 @@ import tenpy.networks
 import tenpy.networks.site
 
 logging.basicConfig(format='%(asctime)s: %(levelname)s: %(message)s',
-        level=logging.DEBUG)
+        level=logging.INFO)
 
 import sys
 sys.path.append("../src")
@@ -49,19 +49,19 @@ if __name__ == '__main__':
     args = argument_parser.parse_args()
     logging.info("Input arguments = %s" % vars(args))
 
-    n_spins:int = args.systemsize 
+    systemsize:int = args.systemsize 
     bonddim:int = args.bonddim
 
     string_start_date = time.strftime("%Y-%j_%H-%M-%S", time.localtime())
-    string_uuid_simulation = '%s' % uuid.uuid4()
+    uuid_string_simulation = '%s' % uuid.uuid4()
 
     logging.info("date = %s" % (string_start_date,))
-    logging.info("uuid = %s" % (string_uuid_simulation,))
+    logging.info("uuid = %s" % (uuid_string_simulation,))
 
-    algorithm = np.random.choice(['TEBD', 'TEBD'])
+    algorithm = np.random.choice(['TEBD',])
 
     logging.info("Using tenpy version %s" % (tenpy.__version__))
-    string_desc = "%s_sfim_nspins=%d" % (algorithm, n_spins)
+    string_desc = "%s_sfim_nspins=%d" % (algorithm, systemsize)
 
     # TenPy's uses XX interactions and Z as the transverse field.
     # Thus `theta` = 0.0 corresponds to the paramagnetic ground state.
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     b_perp:float = b_field * np.sin(theta_bfield)
 
     logging.info("Using %s" % (algorithm))
-    logging.info("n_spins = %d" % (n_spins))
+    logging.info("systemsize = %d" % (systemsize))
     logging.info("j_int = %g, b_parallel = %g, b_perp = %g" % \
             (j_int, b_parallel, b_perp))
 
@@ -84,7 +84,7 @@ if __name__ == '__main__':
             = tenpy.networks.site.SpinHalfSite(conserve=None)
 
     sfim_parameters:dict = {
-        "L": n_spins,
+        "L": systemsize,
         "J": j_int,
         "g": b_perp,
         "bc_MPS": "finite",
@@ -100,7 +100,7 @@ if __name__ == '__main__':
         sfim.init_H_from_terms()
 
     mps_in = tenpy.networks.mps.MPS.from_product_state(
-        [site]*n_spins, p_state=[spinhalf_state(theta, phi)]*n_spins,
+        [site]*systemsize, p_state=[spinhalf_state(theta, phi)]*systemsize,
         bc="finite", dtype=complex)
 
     t_initial:float = 0
@@ -146,7 +146,7 @@ if __name__ == '__main__':
 
     for ix_bonddim in range(n_bonddims):
         trunc_params["chi_max"] = bonddim_list[ix_bonddim]
-        string_uuid_bonddim = '%s' % uuid.uuid4()
+        uuid_string_bonddim = '%s' % uuid.uuid4()
 
         logging.info("%s: Using trunc_params = %s" % (algorithm, trunc_params,))
 
@@ -164,15 +164,15 @@ if __name__ == '__main__':
             evolve_wrappers[ix_bonddim] = wrap
             logging.info("wrap = %s" % (wrap))
 
-        df_mps[ix_bonddim] = evolve_wrappers[ix_bonddim].get_mps_history_df()
+        df_mps_current, mps_list = evolve_wrappers[ix_bonddim].get_mps_history_df()
 
         param_dict = {
-            'uuid_simulation': string_uuid_simulation,
-            'uuid_bonddim': string_uuid_bonddim,
+            'uuid_simulation': uuid_string_simulation,
+            'uuid_bonddim': uuid_string_bonddim,
             'j_int': j_int,
             'b_field': b_field,
             'theta_bfield': theta_bfield,
-            'n_spins': n_spins,
+            'systemsize': systemsize,
             'bonddim': bonddim_list[ix_bonddim],
             't_initial': t_initial,
             't_final': t_final,
@@ -182,14 +182,14 @@ if __name__ == '__main__':
         logging.info("param_dict = %s" % param_dict)
         
         filename_index = os.path.join(
-             config.index_directory, "%s.pkl" % (string_uuid_bonddim,))
+             config.index_directory, "%s.pkl" % (uuid_string_bonddim,))
         with open(filename_index, "wb") as iofile:
             pickle.dump(param_dict, iofile)
 
         logging.info("Saving MPS")
 
         filename_mps_df = os.path.join(
-            config.mps_directory, "%s_mpsHistory.pkl" % (string_uuid_bonddim,))
+            config.mps_directory, "%s_mpsHistory.pkl" % (uuid_string_bonddim,))
         with open(filename_mps_df, "wb") as iofile:
             pickle.dump(df_mps, iofile)
 
