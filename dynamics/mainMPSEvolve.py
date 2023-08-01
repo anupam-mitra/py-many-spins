@@ -135,7 +135,7 @@ if __name__ == '__main__':
             "trunc_params" : trunc_params,
         }
 
-    bonddim_list:np.ndarray = np.array([128])
+    bonddim_list:np.ndarray = np.array([bonddim])
     n_bonddims:int = len(bonddim_list)
     logging.info(bonddim_list)
 
