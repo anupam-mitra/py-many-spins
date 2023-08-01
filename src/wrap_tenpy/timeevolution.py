@@ -20,8 +20,6 @@ def spinhalf_state (ang_polar, ang_azimuth):
     """
     return np.asarray([cos(ang_polar/2),\
            sin(ang_polar/2) * exp(1j * ang_azimuth)])
-#
-#
 ######################################################################################
 
 ######################################################################################
@@ -62,8 +60,6 @@ def select_central_sites(n, m):
     locations = tuple(range((n - m + 1)//2, (n + m + 1)//2))
 
     return locations
-#
-#
 #####################################################################################
 
 ######################################################################################
@@ -76,6 +72,28 @@ import time
 ######################################################################################
 ######################################################################################
 class TEBDWrapper:
+    """
+    Represents a wrapper around `tenpy.algorithms.tebd.TEBDEngine` to calculate the
+    state represented as `tenpy.networks.mps.MPS` as a function of time.
+
+    Parameters
+    ----------
+    model: tenpy.models.model.NearestNeighborModel
+    Model used to generate the Hamiltonian
+
+    mps_in: tenpy.networks.mps.MPS
+    Initial state, represented as a matrix product state
+
+    tlist: iterable
+    List of times at which to save the state
+
+    trotter_params: dict
+    Dictionary with parameters for Trotter-Suzuki decomposition
+
+    compress_params: dict
+    Dictionary with parameters for compression of matrix product state tensors
+
+    """
     def __init__(self, model, mps_in, tlist,
         trotter_params, trunc_params):
 
@@ -197,37 +215,4 @@ class TDVPWrapper:
             self.df = pandas.DataFrame(self.rows)
 
         return self.df
-#
-#
 ######################################################################################
-######################################################################################
-
-if __name__ == '__main__':
-    n_spins = 14
-
-    theta = pi/2
-    phi = pi/2
-
-    j_int = 1
-    b_parallel = 1
-    b_perp = 1
-
-    S=1/2
-
-    site = tenpy.networks.site.SpinHalfSite(conserve=None)
-
-    sfim_parameters = {
-        "L": n_spins,
-        "J": j_int,
-        "g": b_perp,
-        "bc_MPS": "finite"
-    }
-
-    sfim = tenpy.models.tf_ising.TFIChain(sfim_parameters)
-    sfim.add_onsite(b_parallel, 0, "Sx")
-
-    t_initial = 0
-    t_final = n_spins * n_spins / j_int
-    n_steps = 256
-
-    t_list = np.linspace(t_initial, t_final, n_steps)
