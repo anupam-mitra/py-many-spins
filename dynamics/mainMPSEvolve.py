@@ -80,6 +80,8 @@ if __name__ == '__main__':
     logging.info("j_int = %g, b_parallel = %g, b_perp = %g" % \
             (j_int, b_parallel, b_perp))
 
+    ## Begin setting up the model using TenPy
+    ## TODO: Move this to a separate module
     site:tenpy.networks.site.SpinHalfSite \
             = tenpy.networks.site.SpinHalfSite(conserve=None)
 
@@ -98,6 +100,7 @@ if __name__ == '__main__':
         sfim.manually_call_init_H = True
         sfim.add_onsite(b_parallel, 0, "Sigmax")
         sfim.init_H_from_terms()
+    ## End stting up the moel using TenPy
 
     mps_in = tenpy.networks.mps.MPS.from_product_state(
         [site]*systemsize, p_state=[spinhalf_state(theta, phi)]*systemsize,
@@ -135,65 +138,63 @@ if __name__ == '__main__':
             "trunc_params" : trunc_params,
         }
 
-    bonddim_list:np.ndarray = np.array([bonddim])
-    n_bonddims:int = len(bonddim_list)
-    logging.info(bonddim_list)
-
     walltime_begin:float = time.time()
 
-    evolve_wrappers:np.ndarray = np.empty(bonddim_list.shape, dtype=object)
-    df_mps:np.ndarray = np.empty(bonddim_list.shape, dtype=object)
+    trunc_params["chi_max"] = bonddim
+    uuid_string_bonddim = '%s' % uuid.uuid4()
 
-    for ix_bonddim in range(n_bonddims):
-        trunc_params["chi_max"] = bonddim_list[ix_bonddim]
-        uuid_string_bonddim = '%s' % uuid.uuid4()
+    logging.info("%s: Using trunc_params = %s" % (algorithm, trunc_params,))
 
-        logging.info("%s: Using trunc_params = %s" % (algorithm, trunc_params,))
+    if algorithm == 'TEBD':
+        wrap:TEBDWrapper = TEBDWrapper(sfim, mps_in, t_list, 
+                                       trotter_params, trunc_params)
+        wrap.evolve()
+        logging.info("wrap = %s" % (wrap))
 
-        if algorithm == 'TEBD':
-            wrap:TEBDWrapper = TEBDWrapper(sfim, mps_in, t_list, 
-                                           trotter_params, trunc_params)
-            wrap.evolve()
-            evolve_wrappers[ix_bonddim] = wrap
-            logging.info("wrap = %s" % (wrap))
+    elif algorithm == 'TDVP':
+        wrap:TDVPWrapper = TDVPWrapper(sfim, mps_in, t_list, 
+                                       trunc_params, tdvp_params)
+        wrap.evolve()
+        logging.info("wrap = %s" % (wrap))
 
-        elif algorithm == 'TDVP':
-            wrap:TDVPWrapper = TDVPWrapper(sfim, mps_in, t_list, 
-                                           trunc_params, tdvp_params)
-            wrap.evolve()
-            evolve_wrappers[ix_bonddim] = wrap
-            logging.info("wrap = %s" % (wrap))
+    df_mps, mps_list = wrap.get_mps_history_df()
 
-        df_mps_current, mps_list = evolve_wrappers[ix_bonddim].get_mps_history_df()
+    param_dict = {
+        'uuid_simulation': uuid_string_simulation,
+        'uuid_bonddim': uuid_string_bonddim,
+        'j_int': j_int,
+        'b_field': b_field,
+        'theta_bfield': theta_bfield,
+        'systemsize': systemsize,
+        'bonddim': bonddim,
+        't_initial': t_initial,
+        't_final': t_final,
+        'algorithm': algorithm,
+        'library': 'TenPy',
+    }
+    logging.info("param_dict = %s" % param_dict)
+    
+    filename_index = os.path.join(
+         config.index_directory, "%s.pkl" % (uuid_string_bonddim,))
+    with open(filename_index, "wb") as iofile:
+        pickle.dump(param_dict, iofile)
 
-        param_dict = {
-            'uuid_simulation': uuid_string_simulation,
-            'uuid_bonddim': uuid_string_bonddim,
-            'j_int': j_int,
-            'b_field': b_field,
-            'theta_bfield': theta_bfield,
-            'systemsize': systemsize,
-            'bonddim': bonddim_list[ix_bonddim],
-            't_initial': t_initial,
-            't_final': t_final,
-            'algorithm': algorithm,
-            'library': 'TenPy',
-        }
-        logging.info("param_dict = %s" % param_dict)
-        
-        filename_index = os.path.join(
-             config.index_directory, "%s.pkl" % (uuid_string_bonddim,))
-        with open(filename_index, "wb") as iofile:
-            pickle.dump(param_dict, iofile)
+    logging.info("Saving MPS")
 
-        logging.info("Saving MPS")
+    filename_mps_df = os.path.join(
+        config.mps_directory, "%s_index.pkl" % (uuid_string_bonddim,))
+    with open(filename_mps_df, "wb") as iofile:
+        pickle.dump(df_mps, iofile)
 
-        filename_mps_df = os.path.join(
-            config.mps_directory, "%s_mpsHistory.pkl" % (uuid_string_bonddim,))
-        with open(filename_mps_df, "wb") as iofile:
-            pickle.dump(df_mps, iofile)
+    for ix_mps, mps in enumerate(mps_list):
+        uuid_str_mps = '%s' % (uuid.uuid4(),)
+        filename_mps = os.path.join(
+            config.mps_directory, "%s.pkl" % (uuid_str_mps,))
+        with open(filename_mps, "wb") as iofile:
+            pickle.dump(mps, iofile)
 
-        logging.info("Finished saving MPS")
+
+    logging.info("Finished saving MPS")
 
     walltime_end:float = time.time()
     walltime_duration:float = walltime_end - walltime_begin
