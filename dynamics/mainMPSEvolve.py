@@ -53,10 +53,8 @@ if __name__ == '__main__':
     bonddim:int = args.bonddim
 
     string_start_date = time.strftime("%Y-%j_%H-%M-%S", time.localtime())
-    uuid_string_simulation = '%s' % uuid.uuid4()
 
     logging.info("date = %s" % (string_start_date,))
-    logging.info("uuid = %s" % (uuid_string_simulation,))
 
     algorithm = np.random.choice(['TEBD',])
 
@@ -159,8 +157,9 @@ if __name__ == '__main__':
 
     df_mps, mps_list = wrap.get_mps_history_df()
 
+    df_mps["uuid_bonddim"] = uuid_string_bonddim
+
     param_dict = {
-        'uuid_simulation': uuid_string_simulation,
         'uuid_bonddim': uuid_string_bonddim,
         'j_int': j_int,
         'b_field': b_field,
@@ -192,7 +191,6 @@ if __name__ == '__main__':
             config.mps_directory, "%s.pkl" % (uuid_str_mps,))
         with open(filename_mps, "wb") as iofile:
             pickle.dump(mps, iofile)
-
 
     logging.info("Finished saving MPS")
 
