@@ -4,7 +4,8 @@ import tenpy
 import tenpy.networks.site
 import tenpy.linalg.np_conserved
 
-def gen_random_spinhalf_MPS(n_spins:int, dtype=float): """
+def gen_random_spinhalf_MPS(n_spins:int, dtype=float):
+    """
     Generate a random MPS for a 1d array
     of spin-half degrees of freedom
     Parameters
