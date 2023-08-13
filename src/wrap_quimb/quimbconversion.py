@@ -4,7 +4,6 @@ import quimb.tensor
 import numpy as np
 
 
-
 def quimb_mp_to_ndarray (quimb_mp):
     '''
     Converts a qutip ket to a quimb
@@ -25,7 +24,7 @@ def quimb_mp_to_ndarray (quimb_mp):
 
     if isinstance(quimb_mp, quimb.tensor.tensor_1d.MatrixProductState):
         dims = [[quimb_mp.phys_dim()] * quimb_mp.L, \
-                [1] * quimb_mp.L ]
+                [1] * quimb_mp.L]
         shape = (quimb_mp.phys_dim()** quimb_mp.L, 1)
     elif isinstance(quimb_mp, quimb.tensor.tensor_1d.MatrixProductOperator):
         dims = [[quimb_mp.phys_dim()] * quimb_mp.L, \
