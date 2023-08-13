@@ -6,7 +6,7 @@ import numpy as np
 
 def convert_quimb_mp_to_qutip_qobj (quimb_mp):
     '''
-    Converts a qutip ket to a quimb 
+    Converts a qutip ket to a quimb
     Matrix Product State
 
     Parameters
@@ -14,47 +14,47 @@ def convert_quimb_mp_to_qutip_qobj (quimb_mp):
     quimb_mps:
         Representation as a quimb matrix product state
         or matrix product operator
-        
+
     Returns
     -------
-    qutip_ket: 
+    qutip_ket:
         Representation as a qutip ket
     '''
     data = quimb_mp.to_dense()
 
     if isinstance(quimb_mp, quimb.tensor.tensor_1d.MatrixProductState):
-        dims = ([quimb_mp.phys_dim()] * quimb_mp.nsites, \
-                [1] * quimb_mp.nsites)
-        shape = (quimb_mp.phys_dim()** quimb_mp.nsites, 1)
+        dims = [[quimb_mp.phys_dim()] * quimb_mp.L, \
+                [1] * quimb_mp.L]
+        shape = (quimb_mp.phys_dim()** quimb_mp.L, 1)
     elif isinstance(quimb_mp, quimb.tensor.tensor_1d.MatrixProductOperator):
-        dims = ([quimb_mp.phys_dim()] * quimb_mp.nsites, \
-                [quimb_mp.phys_dim()] * quimb_mp.nsites)
-        shape = (quimb_mp.phys_dim()** quimb_mp.nsites, quimb_mp.phys_dim()** quimb_mp.nsites)
+        dims = [[quimb_mp.phys_dim()] * quimb_mp.L, \
+                [quimb_mp.phys_dim()] * quimb_mp.L]
+        shape = (quimb_mp.phys_dim()** quimb_mp.L, quimb_mp.phys_dim()** quimb_mp.L)
         data = np.asarray(data)
     else:
         dims=None
         shape=None
-        
+
     qutip_qobj = qutip.qobj.Qobj(data, dims=dims, shape=shape)
 
     return qutip_qobj
 
 def convert_qutip_ket_to_quimb_mps (qutip_ket, cutoff=None, cutoff_mode='sum2', max_bond=None):
     '''
-    Converts a qutip ket to a quimb 
+    Converts a qutip ket to a quimb
     Matrix Product State
 
     Parameters
     ----------
-    qutip_ket: 
+    qutip_ket:
         Representation as a qutip ket
-    
+
     Returns
     -------
     quimb_mps:
         Representation as a quimb mps
     '''
-    
+
     split_opts = {}
 
     if cutoff != None:
