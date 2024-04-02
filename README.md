@@ -1,6 +1,7 @@
 # Simulation of many body quantum dynamics
 This repository has code to calculate many body quantum non-equilibrium dynamics
-using a few python libraries `quimb`, `tenpy` and `qutip`.
+using a few python libraries `quimb`, `tenpy` and `qutip`. `qutip` `5.0` and newer
+break functionality.
 
 - `manybody_util`: contains utilities for many body calculations.
 
