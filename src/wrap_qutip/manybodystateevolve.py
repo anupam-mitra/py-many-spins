@@ -1,4 +1,6 @@
 import qutip
+import qutip.qip
+import qutip.qip.operations
 import itertools
 import numpy as np
 from numpy import sqrt
