@@ -103,7 +103,7 @@ if __name__ == '__main__':
         sfim.manually_call_init_H = True
         sfim.add_onsite(b_parallel, 0, "Sigmax")
         sfim.init_H_from_terms()
-    ## End stting up the moel using TenPy
+    ## End setting up the model using TenPy
 
     mps_in = tenpy.networks.mps.MPS.from_product_state(
         [site]*systemsize, p_state=[spinhalf_state(theta, phi)]*systemsize,
