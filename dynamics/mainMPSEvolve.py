@@ -73,6 +73,11 @@ if __name__ == '__main__':
     b_parallel:float = b_field * np.cos(theta_bfield)
     b_perp:float = b_field * np.sin(theta_bfield)
 
+    # arXiv.2008.04894 "precesion DQPT" parameters
+    j_int:float = 0.1
+    b_parallel:float = 0.15
+    b_perp:float = 1.0
+
     logging.info("Using %s" % (algorithm))
     logging.info("systemsize = %d" % (systemsize))
     logging.info("j_int = %g, b_parallel = %g, b_perp = %g" % \
@@ -94,11 +99,11 @@ if __name__ == '__main__':
     sfim:tenpy.models.tf_ising.TFIChain \
         = tenpy.models.tf_ising.TFIChain(sfim_parameters)
 
-    if theta_bfield != np.pi/2: 
+    if theta_bfield != np.pi/2 and b_parallel != 0.0: 
         sfim.manually_call_init_H = True
         sfim.add_onsite(b_parallel, 0, "Sigmax")
         sfim.init_H_from_terms()
-    ## End stting up the moel using TenPy
+    ## End setting up the model using TenPy
 
     mps_in = tenpy.networks.mps.MPS.from_product_state(
         [site]*systemsize, p_state=[spinhalf_state(theta, phi)]*systemsize,
@@ -197,4 +202,3 @@ if __name__ == '__main__':
     walltime_end:float = time.time()
     walltime_duration:float = walltime_end - walltime_begin
     logging.info("Time taken = %g s" % (walltime_duration))
-
