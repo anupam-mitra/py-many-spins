@@ -13,7 +13,6 @@ import pickle
 #     Interaction1DNextNearest
 # ]
 
-
 ################################################################################
 class UniformTwoBodyInteraction:
     """
@@ -36,7 +35,7 @@ class UniformTwoBodyInteraction:
         try:
             self.dim_local = self.operators_local[0].dims[0]
         except Exception as e:
-            self.dim_local = [2 for _ in interact_graph.n_sites]
+            self.dim_local = [2 for _ in range(interact_graph.n_sites)]
 
     def construct_hamiltonian_qutip(self, n_spins):
         '''
