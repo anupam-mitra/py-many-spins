@@ -138,6 +138,75 @@ def test_qutip_sesolve_state_history_and_marginal_helpers():
     assert np.isclose(rho.tr(), 1.0)
 
 
+def test_quspin_adapter_constructs_static_terms():
+    pytest.importorskip("quspin")
+
+    from wrap_quspin.spinmodel import (
+        to_quspin_basis,
+        to_quspin_hamiltonian,
+        to_quspin_static_terms,
+    )
+
+    model = tilted_field_ising_1d(3, j_xx=0.1, b_z=1.0, b_x=0.15)
+    static_terms = dict(to_quspin_static_terms(model))
+
+    assert static_terms["z"] == [[1.0, 0], [1.0, 1], [1.0, 2]]
+    assert static_terms["x"] == [[0.15, 0], [0.15, 1], [0.15, 2]]
+    assert static_terms["xx"] == [[0.1, 0, 1], [0.1, 1, 2]]
+
+    basis = to_quspin_basis(model)
+    hamiltonian = to_quspin_hamiltonian(model, basis=basis)
+    assert hamiltonian.Ns == 2**model.n_sites
+    assert hamiltonian.toarray().shape == (2**model.n_sites, 2**model.n_sites)
+
+
+def test_quspin_adapter_embeds_noncontiguous_two_site_terms():
+    pytest.importorskip("quspin")
+
+    from wrap_quspin.spinmodel import to_quspin_static_terms
+
+    model = SpinHalfPauliModel(
+        n_sites=3,
+        two_site_terms=(
+            TwoSiteTerm(0.7, ("x", "z"), (WeightedEdge(2, 0),)),
+        ),
+    )
+
+    assert dict(to_quspin_static_terms(model))["xz"] == [[0.7, 2, 0]]
+
+
+def test_quspin_exact_evolution_and_marginal_helpers():
+    pytest.importorskip("quspin")
+
+    from wrap_quspin.spinmodel import to_quspin_basis, to_quspin_hamiltonian
+    from wrap_quspin.timeevolution import (
+        local_marginal_density_matrix,
+        manyspin_product_state,
+        solve_state_history,
+    )
+
+    model = tilted_field_ising_1d(2, j_xx=0.0, b_z=0.2, b_x=0.0)
+    basis = to_quspin_basis(model)
+    initial_state = manyspin_product_state(2, np.pi / 2, 0.0, basis=basis)
+    tlist = np.array([0.0, 0.1, 0.3])
+
+    df_states, states = solve_state_history(
+        to_quspin_hamiltonian(model, basis=basis),
+        initial_state,
+        tlist,
+        metadata={"bonddim": None},
+    )
+
+    assert len(states) == len(tlist)
+    assert np.allclose(df_states["time"], tlist)
+    assert states[0].shape == initial_state.shape
+    assert np.isclose(np.linalg.norm(states[-1]), 1.0)
+
+    rho = local_marginal_density_matrix(states[-1], (0,), basis)
+    assert rho.shape == (2, 2)
+    assert np.isclose(np.trace(rho), 1.0)
+
+
 def test_qutip_quimb_conversion_uses_modern_qobj_api():
     qutip = pytest.importorskip("qutip")
     pytest.importorskip("quimb.tensor")
