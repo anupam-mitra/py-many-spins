@@ -51,14 +51,22 @@ class AlternateOneQubitTwoQubit1D:
         for d in range(depth):
 
             for l in range(self.n_spins):
-                psi = qtn.gate_TN_1D(psi, G=self.onequbitgate, where=(l,), contract=True, \
-                    inplace=False, max_bond=self.max_bond)
+                psi = psi.gate(
+                    G=self.onequbitgate,
+                    where=(l,),
+                    contract=True,
+                    max_bond=self.max_bond,
+                )
 
             self.states += [psi]
 
             for l in range(self.n_spins-1):
-                psi = qtn.gate_TN_1D(psi, G=self.twoqubitgate, where=(l, l+1), contract='swap+split', \
-                    inplace=False, max_bond=self.max_bond)
+                psi = psi.gate(
+                    G=self.twoqubitgate,
+                    where=(l, l+1),
+                    contract='swap+split',
+                    max_bond=self.max_bond,
+                )
 
             self.states += [psi]
 
@@ -117,12 +125,10 @@ class TrotterSuzuki1D:
         psi = psi_in.copy(deep=True)
 
         for l in range(self.n_qubits):
-            psi = qtn.gate_TN_1D(tn=psi, G=self.local_gate, where=l, inplace=True, \
-                contract=True)
+            psi.gate_(G=self.local_gate, where=l, contract=True)
 
         for l1, l2 in self.interact_graph:
-            psi = qtn.gate_TN_1D(tn=psi, G=self.interact_gate, where=(l1, l2), inplace=True, \
-                contract='swap+split')
+            psi.gate_(G=self.interact_gate, where=(l1, l2), contract='swap+split')
 
 class TransverseFieldIsing1DKicked (AlternateOneQubitTwoQubit1D):
     '''
@@ -248,8 +254,8 @@ class KickedTFIM1DCircuit:
 #     def _apply_local_gates(self, psi_in):
         
 #         for l in range(self.n_spins):
-#             psi_out = qtn.gate_TN_1D(psi_in, self.gate_rotate, (l,), \
-#                                      contract=True, inplace=False,\
+#             psi_out = psi_in.gate(self.gate_rotate, (l,), \
+#                                      contract=True,\
 #                                     )
         
 #         self.states += [psi_out]
@@ -257,8 +263,8 @@ class KickedTFIM1DCircuit:
 #     def _apply_interact_gates(self, psi_in):
         
 #         for l in range(self.n_spins-1):
-#             psi_out = qtn.gate_TN_1D(psi_in, self.gate_interact, (l, l+1), \
-#                                      contract='swap+split', inplace=False, \
+#             psi_out = psi_in.gate(self.gate_interact, (l, l+1), \
+#                                      contract='swap+split', \
 #                                     )
         
 #         self.states += [psi_out]
@@ -274,14 +280,22 @@ class KickedTFIM1DCircuit:
         psi = psi_in
         for d in range(depth):
             for l in range(self.n_spins):
-                psi = qtn.gate_TN_1D(psi, self.gate_rotate, (l,), contract=True, inplace=False, \
-                                     max_bond=self.max_bond)
+                psi = psi.gate(
+                    self.gate_rotate,
+                    (l,),
+                    contract=True,
+                    max_bond=self.max_bond,
+                )
 
             self.states += [psi]
 
             for l in range(self.n_spins-1):
-                psi = qtn.gate_TN_1D(psi, self.gate_interact, (l, l+1), contract='swap+split', inplace=False, \
-                                    max_bond=self.max_bond)
+                psi = psi.gate(
+                    self.gate_interact,
+                    (l, l+1),
+                    contract='swap+split',
+                    max_bond=self.max_bond,
+                )
 
             self.states += [psi]
 

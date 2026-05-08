@@ -79,7 +79,7 @@ def eval_single_trajectory(\
         
         for j in range(n_jump_ops):
             for l in range(n_spins):
-                psit = qtn.gate_TN_1D(psit, expm_h_dk_ops[j], l, contract=True)
+                psit = psit.gate(expm_h_dk_ops[j], l, contract=True)
                 
         psi_ts += [psit]
 
@@ -96,7 +96,7 @@ def eval_single_trajectory(\
 
             # Calculate the probability distribution of jumps
             prob_jumps = np.asarray([\
-                        np.abs(psit.H @ qtn.gate_TN_1D(psit, qu.dag(jump_op) @ jump_op, l))
+                        np.abs(psit.H @ psit.gate(qu.dag(jump_op) @ jump_op, l))
                           for jump_op in jump_ops for l in range(n_spins)])
             
             prob_jumps /= np.sum(prob_jumps)
@@ -122,7 +122,7 @@ def eval_single_trajectory(\
                     (index_jump, index_jump_op, loc_jump)
                 print('\t', _debug_str)
 
-            psit_jumped = qtn.gate_TN_1D(psit, jump_ops[index_jump_op], loc_jump, contract=True)
+            psit_jumped = psit.gate(jump_ops[index_jump_op], loc_jump, contract=True)
 
             count_random_used_jump_choice += 1
             psit_jumped /= np.sqrt(psit_jumped.H @ psit_jumped)

@@ -20,7 +20,7 @@ def calc_marginal_quimb (mps, locations):
     represented as a dense array
     from a quimb matrix product state
     represented using 
-    `quimb.tensor.tensor_1d.MatrixProductState`
+    `quimb.tensor.MatrixProductState`
     
     Parameters
     ----------
@@ -35,7 +35,7 @@ def calc_marginal_quimb (mps, locations):
     marginal_rho: marginal density matrix
     
     '''
-    marginal_mpo = mps.partial_trace(keep=locations)
+    marginal_mpo = mps.partial_trace_to_mpo(keep=locations)
     marginal_rho = marginal_mpo.to_dense()
     
     return marginal_rho
@@ -55,7 +55,7 @@ INITIAL_STATE = 'upy'
 import simulationdictionary
 inputs_dict = simulationdictionary.get_input_dicts()
 
-#### Read MPS histories calculated using `quimb.tensor.tensor_1d.TEBD`
+#### Read MPS histories calculated using `quimb.tensor.TEBD`
 print('%s' % time.strftime('%Y-%m-%d %T'))
 QUIMB_DATA_DIR = '../../Data/2020-March/Quimb/'
 quimb_records_dict = {}

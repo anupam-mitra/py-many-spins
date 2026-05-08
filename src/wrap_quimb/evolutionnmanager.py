@@ -1,7 +1,7 @@
 
 import numpy as np
 import quimb 
-import quimb.tensor
+import quimb.tensor as qtn
 
 import time
 import scipy
@@ -192,7 +192,7 @@ class SpinDynamicsCalculation:
         }
 
         # Construct the hamiltonian as an object of type
-        # quimb.tensor.tensor_1d.Local1DHam
+        # quimb.tensor.LocalHam1D
         h2_terms = []
 
         jxx = self.hamiltonianParams.get('jxx')
@@ -233,7 +233,7 @@ class SpinDynamicsCalculation:
             'H1': h1,
         }
 
-        localHam1d = quimb.tensor.tensor_1d.LocalHam1D(\
+        localHam1d = qtn.LocalHam1D(\
             **quimbHamiltonianParams)
 
         # Construct the initial state
@@ -244,21 +244,26 @@ class SpinDynamicsCalculation:
             angPolar = self.initialConditionParams.get('angPolar', 0)
   
             oneSpinState = spinHalfState(angPolar, angAzimuth)
-            quimbInitialState = quimb.tensor.MPS_product_state(\
+            quimbInitialState = qtn.MPS_product_state(\
                 [oneSpinState] * self.nSpins)
 
         elif self.initialConditionParams.get('type') == 'BitString':
             bitstring = self.initialConditionParams.get('bitstring')
-            quimbInitialState = quimb.tensor.MPS_computational_state(binary=bitstring)
+            quimbInitialState = qtn.MPS_computational_state(binary=bitstring)
 
         elif self.initialConditionParams.get('type') == 'RandomProduct':
-            quimbInitialState = quimb.tensor.MPS_rand_state(L=self.nSpins, 
+            quimbInitialState = qtn.MPS_rand_state(L=self.nSpins,
                 bond_dim=1, phys_dim=2,)
 
         else:
-            quimbInitialState = quimb.tensor.MPS_computational_state(binary='0' * self.nSpins)
+            quimbInitialState = qtn.MPS_computational_state(binary='0' * self.nSpins)
 
         wallTimeEnd = time.time_ns()
+
+        # Prepare a TEBD object
+        self.tebd = qtn.TEBD(quimbInitialState,
+                    localHam1d,
+                    **quimbTEBDParams)
 
         # Prepare a list to store rows of states
         self.statesRows = [{
@@ -271,11 +276,6 @@ class SpinDynamicsCalculation:
             'wallTimeEnd': wallTimeEnd,
             'wallTimeDuration': wallTimeEnd - wallTimeStart
         }]
-
-        # Prepare a TEBD object
-        self.tebd = quimb.tensor.tensor_1d.TEBD(quimbInitialState, 
-                    localHam1d,
-                    **quimbTEBDParams)
 
 
     def step(self):

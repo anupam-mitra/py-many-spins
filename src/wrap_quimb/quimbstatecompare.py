@@ -29,7 +29,7 @@ def make_tfim_hamiltonian(j_int, bx, S=1/2):
     interact_energies = [j_int]
     interact_ops = [sigmaz]
 
-    builder = qtn.SpinHam(S=S)
+    builder = qtn.SpinHam1D(S=S)
 
     for ll in range(len(local_ops)):
         builder.add_term(local_energies[ll], local_ops[ll])
@@ -37,8 +37,7 @@ def make_tfim_hamiltonian(j_int, bx, S=1/2):
     for ll in range(len(interact_ops)):
         builder.add_term(interact_energies[ll], interact_ops[ll], interact_ops[ll])
 
-    h = builder.build_nni(n_spins)
-    h = qtn.NNI_ham_ising(n_spins, j=j_int, bx=bx, cyclic=False)
+    h = builder.build_local_ham(n_spins)
 
     return h
 ############################################################################################
@@ -48,13 +47,14 @@ def timeevolve_mps (psi_in, h, tlist, epsilon_trotter=1e-6, \
     cutoff=None, max_bond=None, title_string=None):
     psi_ts = [] # states
 
-    tebd = qtn.TEBD(psi_in, h)
-
+    split_opts = {}
     if cutoff != None:
-        tebd.split_opts['cutoff'] = cutoff
+        split_opts['cutoff'] = cutoff
 
     if max_bond != None:
-        tebd.split_opts['max_bond'] = max_bond
+        split_opts['max_bond'] = max_bond
+
+    tebd = qtn.TEBD(psi_in, h, split_opts=split_opts, progbar=False)
 
     # generate the state at each time in tlist
     timestamp_start = time.time()
@@ -124,7 +124,7 @@ def calc_manyspin_moment (state, ops, ls, n_spins=None):
     duplicate_flag = (len(ls_unique) != len(ls))
     
     if not duplicate_flag:
-        moment = state.H @ qtn.gate_TN_1D(state, qu.kron(*ops), np.asarray(ls))
+        moment = state.H @ state.gate(qu.kron(*ops), tuple(ls))
     else:
         moment = float("nan")
     return moment

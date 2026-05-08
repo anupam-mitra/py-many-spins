@@ -15,7 +15,7 @@ class MPSResult:
     def calc_observable (self):
         #
         # Calculates the observables 
-        # using quimb.tensor.tensor_1d.gate
+        # using modern quimb.tensor MPS gate methods
 
         pass
 
@@ -44,8 +44,7 @@ class MPSTrajectoryResult:
         self.parameters = {}
 
 import numpy as np
-import quimb
-import quimb.tensor
+import quimb.tensor as qtn
 
 ################################################################################
 class QuimbTEBD1DSolver:
@@ -81,13 +80,18 @@ class QuimbTEBD1DSolver:
         #self.h_local = self.hamiltonian_model.construct_hamiltonian_quimb(self.n_sites)
         self.h_local = self.hamiltonian_model.build_local_ham(self.n_sites)
 
-        self.tebd = quimb.tensor.TEBD(self.initial_mps, self.h_local)
-        self.tebd.split_opts = self.split_opts
+        self.tebd = qtn.TEBD(
+            self.initial_mps,
+            self.h_local,
+            split_opts=self.split_opts,
+        )
 
         self.states = np.empty_like(self.t_list, dtype=object)
 
         for t_index in range(len(self.t_list)):
-            mps_current = self.tebd.at_times(self.t_list[t_index], **self.trotter_opts)
+            mps_current = next(
+                self.tebd.at_times([self.t_list[t_index]], **self.trotter_opts)
+            )
 
             self.states[t_index] = mps_current
 

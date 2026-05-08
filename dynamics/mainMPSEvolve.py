@@ -32,6 +32,8 @@ import config
 ###    `timeevolution.TDVPWrapper` and `timeevolution.TEBDWrapper`
 ###    respectively.
 
+from manybody_util.spinmodel import tilted_field_ising_1d
+from wrap_tenpy.spinmodel import to_tenpy_model
 from wrap_tenpy.timeevolution import TEBDWrapper, TDVPWrapper, spinhalf_state
 
 ####################################################################################################
@@ -83,27 +85,17 @@ if __name__ == '__main__':
     logging.info("j_int = %g, b_parallel = %g, b_perp = %g" % \
             (j_int, b_parallel, b_perp))
 
-    ## Begin setting up the model using TenPy
-    ## TODO: Move this to a separate module
+    spin_model = tilted_field_ising_1d(
+        systemsize,
+        j_xx=j_int,
+        b_z=b_perp,
+        b_x=b_parallel,
+        bc="open",
+    )
+    sfim = to_tenpy_model(spin_model, bc_mps="finite", conserve=None)
+
     site:tenpy.networks.site.SpinHalfSite \
             = tenpy.networks.site.SpinHalfSite(conserve=None)
-
-    sfim_parameters:dict = {
-        "L": systemsize,
-        "J": j_int,
-        "g": b_perp,
-        "bc_MPS": "finite",
-        "conserve": None
-    }
-
-    sfim:tenpy.models.tf_ising.TFIChain \
-        = tenpy.models.tf_ising.TFIChain(sfim_parameters)
-
-    if theta_bfield != np.pi/2 and b_parallel != 0.0: 
-        sfim.manually_call_init_H = True
-        sfim.add_onsite(b_parallel, 0, "Sigmax")
-        sfim.init_H_from_terms()
-    ## End setting up the model using TenPy
 
     mps_in = tenpy.networks.mps.MPS.from_product_state(
         [site]*systemsize, p_state=[spinhalf_state(theta, phi)]*systemsize,

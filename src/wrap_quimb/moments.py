@@ -17,37 +17,31 @@ def parse_term (term):
     '''
 
     operator_names = term[0]
-    sites = terms[1]
+    sites = term[1]
 
     n_operators = len(operator_names)
     n_sites = len(sites)
 
-    answer
+    if n_operators == 1 and operator_names[0].lower() == 'rho':
+        raise NotImplementedError('densitymatrix')
 
-    if n_operators == 1 and operators[0].lower() == 'rho':
-            answer = 'densitymatrix'
-            raise NotImplementedError(answer)
+    operators = [qu.pauli(opname) for opname in operator_names]
 
-   operators = [qu.pauli(opname) for opname in operators_names]
-
-   return operators, sites
+    return operators, sites
 
 
-    
+def calc_manyspin_moment (state, ops, ls, n_spins=None):
+    ls_unique = list(set(ls))
+    duplicate_flag = (len(ls_unique) != len(ls))
 
-    def calc_manyspin_moment (state, ops, ls, n_spins=None):
-    
-        ls_unique = list(set(ls))
-        duplicate_flag = (len(ls_unique) != len(ls))
-        
-        if not duplicate_flag:
-            moment = state.H @ qtn.gate_TN_1D(state, qu.kron(*ops), np.asarray(ls))
-        else:
-            moment = float("nan")
-        return moment
+    if not duplicate_flag:
+        moment = state.H @ state.gate(qu.kron(*ops), tuple(ls))
+    else:
+        moment = float("nan")
+    return moment
 
 class SpinMomentsCalculation:
-    '''
+    r'''
     Calculates spin moments for a time series of matrix product 
     states
 
@@ -131,9 +125,9 @@ class Circuit1SpinMoments1D:
             psi = self.circuit.states[d]
 
             for l in self.sites:
-                self.x_exp[d, l] = np.real(psi.H @ qtn.gate_TN_1D(psi, qu.pauli('X'), (l,)))
-                self.y_exp[d, l] = np.real(psi.H @ qtn.gate_TN_1D(psi, qu.pauli('Y'), (l,)))
-                self.z_exp[d, l] = np.real(psi.H @ qtn.gate_TN_1D(psi, qu.pauli('Z'), (l,)))
+                self.x_exp[d, l] = np.real(psi.H @ psi.gate(qu.pauli('X'), (l,)))
+                self.y_exp[d, l] = np.real(psi.H @ psi.gate(qu.pauli('Y'), (l,)))
+                self.z_exp[d, l] = np.real(psi.H @ psi.gate(qu.pauli('Z'), (l,)))
 
     def get_data(self):
         '''
@@ -194,31 +188,31 @@ class Circuit2SpinMoments1D:
             for l in self.distances:
 
                 self.xx_exp[d, l-1] = np.real(psi.H @ \
-                                qtn.gate_TN_1D(psi, qu.kron(qu.pauli('X'), qu.pauli('X')), \
+                                psi.gate(qu.kron(qu.pauli('X'), qu.pauli('X')), \
                                     (m, m+l)))
                 self.xy_exp[d, l-1] = np.real(psi.H @ \
-                                qtn.gate_TN_1D(psi, qu.kron(qu.pauli('X'), qu.pauli('Y')), \
+                                psi.gate(qu.kron(qu.pauli('X'), qu.pauli('Y')), \
                                     (m, m+l)))
                 self.xz_exp[d, l-1] = np.real(psi.H @ \
-                                qtn.gate_TN_1D(psi, qu.kron(qu.pauli('X'), qu.pauli('Z')), \
+                                psi.gate(qu.kron(qu.pauli('X'), qu.pauli('Z')), \
                                     (m, m+l)))
                 self.yx_exp[d, l-1] = np.real(psi.H @ \
-                                qtn.gate_TN_1D(psi, qu.kron(qu.pauli('Y'), qu.pauli('X')), \
+                                psi.gate(qu.kron(qu.pauli('Y'), qu.pauli('X')), \
                                     (m, m+l)))
                 self.yy_exp[d, l-1] = np.real(psi.H @ \
-                                qtn.gate_TN_1D(psi, qu.kron(qu.pauli('Y'), qu.pauli('Y')), \
+                                psi.gate(qu.kron(qu.pauli('Y'), qu.pauli('Y')), \
                                     (m, m+l)))
                 self.yz_exp[d, l-1] = np.real(psi.H @ \
-                                qtn.gate_TN_1D(psi, qu.kron(qu.pauli('Y'), qu.pauli('Z')), \
+                                psi.gate(qu.kron(qu.pauli('Y'), qu.pauli('Z')), \
                                     (m, m+l)))
                 self.zx_exp[d, l-1] = np.real(psi.H @ \
-                                qtn.gate_TN_1D(psi, qu.kron(qu.pauli('Y'), qu.pauli('X')), \
+                                psi.gate(qu.kron(qu.pauli('Y'), qu.pauli('X')), \
                                     (m, m+l)))
                 self.zy_exp[d, l-1] = np.real(psi.H @ \
-                                qtn.gate_TN_1D(psi, qu.kron(qu.pauli('Z'), qu.pauli('Y')), \
+                                psi.gate(qu.kron(qu.pauli('Z'), qu.pauli('Y')), \
                                     (m, m+l)))
                 self.zz_exp[d, l-1] = np.real(psi.H @ \
-                                qtn.gate_TN_1D(psi, qu.kron(qu.pauli('Z'), qu.pauli('Z')), \
+                                psi.gate(qu.kron(qu.pauli('Z'), qu.pauli('Z')), \
                                     (m, m+l)))
 
         self.xx_exp = np.round(self.xx_exp, 10)
@@ -240,4 +234,3 @@ class Circuit2SpinMoments1D:
             self.xx_exp, self.xy_exp, self.xz_exp, \
             self.yx_exp, self.yy_exp, self.yz_exp, \
             self.zx_exp, self.zy_exp, self.zz_exp
-
