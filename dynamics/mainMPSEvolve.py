@@ -34,7 +34,7 @@ if __name__ == '__main__':
     argument_parser.add_argument("--bonddim", type=int)
     argument_parser.add_argument(
         "--algorithm",
-        choices=("TEBD", "TDVP"),
+        choices=("TEBD", "TDVP", "ExpMPO"),
         default="TEBD",
     )
 
@@ -80,6 +80,12 @@ if __name__ == '__main__':
     evolution_params = {"N_steps": 1}
     if args.algorithm == "TEBD":
         evolution_params["order"] = 4
+    elif args.algorithm == "ExpMPO":
+        evolution_params.update({
+            "approximation": "II",
+            "compression_method": "SVD",
+            "order": 2,
+        })
 
     trunc_params = {
         "chi_max": args.bonddim,

@@ -356,3 +356,19 @@ def test_tenpy_tebd_evolution_and_marginal_helpers():
     )
     assert len(tdvp_mps_list) == 2
     assert list(df_tdvp["ix_time"]) == [0, 1]
+
+    df_expmpo, expmpo_mps_list = solve_mps_history(
+        tenpy_model,
+        initial_mps,
+        np.array([0.0, 0.01]),
+        algorithm="ExpMPO",
+        trunc_params={"chi_max": 4, "svd_min": 1e-12},
+        metadata={"bonddim": 4},
+    )
+    assert len(expmpo_mps_list) == 2
+    assert list(df_expmpo["ix_time"]) == [0, 1]
+    assert max_bond_dimension(expmpo_mps_list[-1]) <= 4
+
+    rho_expmpo = local_marginal_density_matrix(expmpo_mps_list[-1], (0,))
+    assert rho_expmpo.shape == (2, 2)
+    assert np.isclose(np.trace(rho_expmpo.to_ndarray()), 1.0)

@@ -20,4 +20,4 @@ using a few python libraries `quimb`, `tenpy`, `qutip`, and `quspin`.
 
 - `wrap_tenpy`: contains wrappers around `TenPy` classes and functions.
   - `spinmodel`: converts shared spin models to direct TenPy chain models.
-  - `timeevolution`: provides MPS evolution using `TEBDEngine` and `TwoSiteTDVPEngine`.
+  - `timeevolution`: provides MPS evolution using `TEBDEngine`, `TwoSiteTDVPEngine`, and `ExpMPOEvolution`.

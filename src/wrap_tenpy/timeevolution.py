@@ -3,6 +3,7 @@ import uuid
 
 import numpy as np
 import pandas
+from tenpy.algorithms.mpo_evolution import ExpMPOEvolution
 from tenpy.algorithms.tebd import TEBDEngine
 from tenpy.algorithms.tdvp import TwoSiteTDVPEngine
 from tenpy.networks.mps import MPS
@@ -47,11 +48,26 @@ def _engine_class(algorithm):
         return TEBDEngine
     if algorithm == "TDVP":
         return TwoSiteTDVPEngine
+    if algorithm == "ExpMPO":
+        return ExpMPOEvolution
     raise ValueError("unsupported TenPy evolution algorithm %r" % (algorithm,))
 
 
-def _engine_options(evolution_params, trunc_params):
-    options = _clean_dict(evolution_params)
+def _engine_defaults(algorithm):
+    if algorithm == "ExpMPO":
+        return {
+            "approximation": "II",
+            "compression_method": "SVD",
+            "order": 2,
+        }
+    return {}
+
+
+def _engine_options(algorithm, evolution_params, trunc_params):
+    options = {
+        **_engine_defaults(algorithm),
+        **_clean_dict(evolution_params),
+    }
     options.pop("dt", None)
     options.pop("N_steps", None)
     options["trunc_params"] = _clean_dict(trunc_params)
@@ -96,7 +112,7 @@ def solve_mps_history(
     engine = _engine_class(algorithm)(
         mps,
         model,
-        _engine_options(evolution_params, trunc_params),
+        _engine_options(algorithm, evolution_params, trunc_params),
     )
     n_substeps = _substeps(evolution_params)
 
