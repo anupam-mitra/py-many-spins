@@ -1,196 +1,147 @@
-import numpy as np
-import itertools
-
-import uuid
-import pandas
-import pickle
-import os
 import argparse
-
-import time
 import logging
-
-import tenpy
-import tenpy.models
-import tenpy.algorithms
-import tenpy.simulations
-import tenpy.networks
-import tenpy.networks.site
-
-logging.basicConfig(format='%(asctime)s: %(levelname)s: %(message)s',
-        level=logging.INFO)
-
+import os
+import pickle
 import sys
+import time
+import uuid
+
+import numpy as np
+import tenpy
+
+logging.basicConfig(
+    format='%(asctime)s: %(levelname)s: %(message)s',
+    level=logging.INFO,
+)
+
 sys.path.append("../src")
 logging.info(sys.path)
 
 import config
 
-### TODO ###
-### 1. Refactor the time evolution wrappers for `tenpy.algorithms.tdvp.TwoSiteTDVPEngine`
-###    and `tenpy.algorithms.tdvp.TEBDEngine`, which are currently the classes
-###    `timeevolution.TDVPWrapper` and `timeevolution.TEBDWrapper`
-###    respectively.
-
 from manybody_util.spinmodel import tilted_field_ising_1d
 from wrap_tenpy.spinmodel import to_tenpy_model
-from wrap_tenpy.timeevolution import TEBDWrapper, TDVPWrapper, spinhalf_state
+from wrap_tenpy.timeevolution import manyspin_product_mps, solve_mps_history
 
-####################################################################################################
+
 if __name__ == '__main__':
-    
     argument_parser = argparse.ArgumentParser(
-        prog="tebdmain.py",
-        description="Calculates time evolution of a matrix product state using TEBD.",
-        epilog=""
+        prog="tenpy_mps_evolve",
+        description="Calculates MPS time evolution using TenPy.",
+        epilog="",
     )
-
-    argument_parser.add_argument("--systemsize", type=int)
+    argument_parser.add_argument("--systemsize", type=int, required=True)
     argument_parser.add_argument("--bonddim", type=int)
+    argument_parser.add_argument(
+        "--algorithm",
+        choices=("TEBD", "TDVP"),
+        default="TEBD",
+    )
 
     args = argument_parser.parse_args()
     logging.info("Input arguments = %s" % vars(args))
+    logging.info("Using tenpy version %s" % (tenpy.__version__,))
 
-    systemsize:int = args.systemsize 
-    bonddim:int = args.bonddim
+    theta = 0.5 * np.pi
+    phi = 0.5 * np.pi
 
-    string_start_date = time.strftime("%Y-%j_%H-%M-%S", time.localtime())
+    j_int = 0.1
+    b_parallel = 0.15
+    b_perp = 1.0
 
-    logging.info("date = %s" % (string_start_date,))
-
-    algorithm = np.random.choice(['TEBD',])
-
-    logging.info("Using tenpy version %s" % (tenpy.__version__))
-    string_desc = "%s_sfim_nspins=%d" % (algorithm, systemsize)
-
-    # TenPy's uses XX interactions and Z as the transverse field.
-    # Thus `theta` = 0.0 corresponds to the paramagnetic ground state.
-    # Thus `theta` = `0.5*pi` and `1.5*pi` corresponds to the ferromagnetic ground states.
-    theta:float = 0.5 * np.pi
-    phi:float = 0.5 * np.pi
-
-    theta_bfield:float = np.pi / 3
-    j_int:float = - 1.0
-    b_field: float = -1.0
-    b_parallel:float = b_field * np.cos(theta_bfield)
-    b_perp:float = b_field * np.sin(theta_bfield)
-
-    # arXiv.2008.04894 "precesion DQPT" parameters
-    j_int:float = 0.1
-    b_parallel:float = 0.15
-    b_perp:float = 1.0
-
-    logging.info("Using %s" % (algorithm))
-    logging.info("systemsize = %d" % (systemsize))
-    logging.info("j_int = %g, b_parallel = %g, b_perp = %g" % \
-            (j_int, b_parallel, b_perp))
+    logging.info("Using %s" % (args.algorithm,))
+    logging.info("systemsize = %d" % (args.systemsize,))
+    logging.info(
+        "j_int = %g, b_parallel = %g, b_perp = %g"
+        % (j_int, b_parallel, b_perp)
+    )
 
     spin_model = tilted_field_ising_1d(
-        systemsize,
+        args.systemsize,
         j_xx=j_int,
         b_z=b_perp,
         b_x=b_parallel,
         bc="open",
     )
-    sfim = to_tenpy_model(spin_model, bc_mps="finite", conserve=None)
+    tenpy_model = to_tenpy_model(spin_model, bc_mps="finite", conserve=None)
+    mps_in = manyspin_product_mps(
+        tenpy_model.lat.mps_sites(),
+        theta,
+        phi,
+        bc=tenpy_model.lat.bc_MPS,
+        unit_cell_width=tenpy_model.lat.mps_unit_cell_width,
+    )
 
-    site:tenpy.networks.site.SpinHalfSite \
-            = tenpy.networks.site.SpinHalfSite(conserve=None)
+    t_initial = 0.0
+    t_final = 20.0 / abs(j_int)
+    n_steps = 2 * int(t_final) + 1
+    t_list = np.linspace(t_initial, t_final, n_steps)
 
-    mps_in = tenpy.networks.mps.MPS.from_product_state(
-        [site]*systemsize, p_state=[spinhalf_state(theta, phi)]*systemsize,
-        bc="finite", dtype=complex)
+    evolution_params = {"N_steps": 1}
+    if args.algorithm == "TEBD":
+        evolution_params["order"] = 4
 
-    t_initial:float = 0
-    t_final:float = 20.0 / np.abs(j_int)
-    n_steps:int = 2*int(t_final) + 1
+    trunc_params = {
+        "chi_max": args.bonddim,
+        "degeneracy_tol": 1e-6,
+    }
 
-    t_list:list = np.linspace(t_initial, t_final, n_steps)
-    t_steps:np.ndarray = np.diff(t_list)
-    logging.info("t_step = %s" % (t_steps))
+    walltime_begin = time.time()
+    uuid_string_bonddim = "%s" % uuid.uuid4()
 
-    if algorithm == 'TEBD':
+    logging.info("%s: evolution_params = %s" % (args.algorithm, evolution_params))
+    logging.info("%s: trunc_params = %s" % (args.algorithm, trunc_params))
 
-        trotter_params:dict = {
-            "order": 4,
-            "dt": t_list[1] - t_list[0],
-            "N_steps": 1
-        }
-
-        trunc_params:dict = {
-            "chi_max": 256 ,
-            "degeneracy_tol": 1e-6,
-            "svd_min": None,
-        }
-
-    elif algorithm == 'TDVP':
-        trunc_params = {
-            "chi_max": 64 ,
-            "degeneracy_tol": 1e-6,
-            "svd_min": None,
-        }
-        tdvp_params = {
-            "trunc_params" : trunc_params,
-        }
-
-    walltime_begin:float = time.time()
-
-    trunc_params["chi_max"] = bonddim
-    uuid_string_bonddim = '%s' % uuid.uuid4()
-
-    logging.info("%s: Using trunc_params = %s" % (algorithm, trunc_params,))
-
-    if algorithm == 'TEBD':
-        wrap:TEBDWrapper = TEBDWrapper(sfim, mps_in, t_list, 
-                                       trotter_params, trunc_params)
-        wrap.evolve()
-        logging.info("wrap = %s" % (wrap))
-
-    elif algorithm == 'TDVP':
-        wrap:TDVPWrapper = TDVPWrapper(sfim, mps_in, t_list, 
-                                       trunc_params, tdvp_params)
-        wrap.evolve()
-        logging.info("wrap = %s" % (wrap))
-
-    df_mps, mps_list = wrap.get_mps_history_df()
-
+    df_mps, mps_list = solve_mps_history(
+        tenpy_model,
+        mps_in,
+        t_list,
+        algorithm=args.algorithm,
+        evolution_params=evolution_params,
+        trunc_params=trunc_params,
+        metadata={"bonddim": args.bonddim},
+    )
     df_mps["uuid_bonddim"] = uuid_string_bonddim
 
     param_dict = {
-        'uuid_bonddim': uuid_string_bonddim,
-        'j_int': j_int,
-        'b_field': b_field,
-        'theta_bfield': theta_bfield,
-        'systemsize': systemsize,
-        'bonddim': bonddim,
-        't_initial': t_initial,
-        't_final': t_final,
-        'algorithm': algorithm,
-        'library': 'TenPy',
+        "uuid_bonddim": uuid_string_bonddim,
+        "j_int": j_int,
+        "b_parallel": b_parallel,
+        "b_perp": b_perp,
+        "systemsize": args.systemsize,
+        "bonddim": args.bonddim,
+        "t_initial": t_initial,
+        "t_final": t_final,
+        "algorithm": args.algorithm,
+        "library": "TenPy",
     }
     logging.info("param_dict = %s" % param_dict)
-    
+
     filename_index = os.path.join(
-         config.index_directory, "%s.pkl" % (uuid_string_bonddim,))
+        config.index_directory,
+        "%s.pkl" % (uuid_string_bonddim,),
+    )
     with open(filename_index, "wb") as iofile:
         pickle.dump(param_dict, iofile)
 
     logging.info("Saving MPS")
 
     filename_mps_df = os.path.join(
-        config.mps_directory, "%s_index.pkl" % (uuid_string_bonddim,))
+        config.mps_directory,
+        "%s_index.pkl" % (uuid_string_bonddim,),
+    )
     with open(filename_mps_df, "wb") as iofile:
         pickle.dump(df_mps, iofile)
 
-    for ix_mps, mps in enumerate(mps_list):
-        uuid_str_mps = '%s' % (uuid.uuid4(),)
+    for row, mps in zip(df_mps.itertuples(), mps_list):
         filename_mps = os.path.join(
-            config.mps_directory, "%s.pkl" % (uuid_str_mps,))
+            config.mps_directory,
+            "%s.pkl" % (row.uuid_str,),
+        )
         with open(filename_mps, "wb") as iofile:
             pickle.dump(mps, iofile)
 
     logging.info("Finished saving MPS")
 
-    walltime_end:float = time.time()
-    walltime_duration:float = walltime_end - walltime_begin
-    logging.info("Time taken = %g s" % (walltime_duration))
+    walltime_duration = time.time() - walltime_begin
+    logging.info("Time taken = %g s" % (walltime_duration,))

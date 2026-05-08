@@ -1,11 +1,10 @@
 import numpy as np
 import itertools
+import pytest
 
-import tenpy
+tenpy = pytest.importorskip("tenpy")
 import tenpy.networks.site
 
-import sys
-sys.path.append("../src")
 
 from wrap_tenpy.distancemeasures import hilbertschmidt_distance
 

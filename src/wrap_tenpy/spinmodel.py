@@ -1,6 +1,6 @@
-import tenpy.models.tf_ising
-
-from manybody_util.spinmodel import nearest_neighbor_edges_1d
+from tenpy.models.lattice import Chain
+from tenpy.models.model import CouplingMPOModel, NearestNeighborModel
+from tenpy.networks.site import SpinHalfSite
 
 
 _TENPY_PAULI_OPERATORS = {
@@ -10,73 +10,65 @@ _TENPY_PAULI_OPERATORS = {
 }
 
 
-def _edge_signature(edges):
-    return tuple((edge.left, edge.right) for edge in edges)
+def _operator_name(operator):
+    try:
+        return _TENPY_PAULI_OPERATORS[operator]
+    except KeyError as exc:
+        raise ValueError("unsupported Pauli operator %r" % (operator,)) from exc
 
 
-def _uniform_edge_weight(edges):
-    weights = {edge.weight for edge in edges}
-    if len(weights) != 1:
+def _chain_index(site):
+    return [site, 0]
+
+
+def _require_nearest_neighbor(left, right):
+    if abs(left - right) != 1:
         raise NotImplementedError(
-            "TenPy TFIChain adapter does not support position-dependent weights"
-        )
-    return next(iter(weights)) if weights else 1.0
-
-
-def _require_open_nearest_neighbors(model, term):
-    expected = _edge_signature(nearest_neighbor_edges_1d(model.n_sites, bc="open"))
-    actual = _edge_signature(term.edges)
-    if actual != expected:
-        raise NotImplementedError(
-            "TenPy TFIChain adapter only supports open 1D nearest-neighbor edges"
+            "TenPy TEBD adapter only supports open 1D nearest-neighbor couplings"
         )
 
 
-def _extract_tfi_parameters(model):
-    j_xx = 0.0
-    b_z = 0.0
-    b_x = 0.0
+class SpinHalfPauliChain(CouplingMPOModel, NearestNeighborModel):
+    """TenPy chain model for shared spin-half Pauli Hamiltonians."""
 
-    for term in model.local_terms:
-        if not term.is_uniform:
-            raise NotImplementedError(
-                "TenPy TFIChain adapter only supports uniform local terms"
-            )
-        if term.operator == "z":
-            b_z += term.coefficient
-        elif term.operator == "x":
-            b_x += term.coefficient
-        elif abs(term.coefficient) > 0.0:
-            raise NotImplementedError(
-                "TenPy TFIChain adapter only supports X and Z local terms"
-            )
+    default_lattice = Chain
+    force_default_lattice = True
 
-    for term in model.two_site_terms:
-        if term.operators != ("x", "x"):
-            raise NotImplementedError(
-                "TenPy TFIChain adapter only supports XX two-site interactions"
-            )
-        _require_open_nearest_neighbors(model, term)
-        j_xx += term.coefficient * _uniform_edge_weight(term.edges)
+    def init_sites(self, model_params):
+        conserve = model_params.get("conserve", None)
+        sort_charge = model_params.get("sort_charge", True)
+        return SpinHalfSite(conserve=conserve, sort_charge=sort_charge)
 
-    return j_xx, b_z, b_x
+    def init_terms(self, model_params):
+        spin_model = model_params.get("spin_model", None)
+        if spin_model is None:
+            raise ValueError("model_params must include a 'spin_model'")
+
+        for coefficient, operator, site in spin_model.expanded_local_terms():
+            if abs(coefficient) > 0.0:
+                self.add_local_term(
+                    coefficient,
+                    [(_operator_name(operator), _chain_index(site))],
+                )
+
+        for coefficient, operators, left, right in spin_model.expanded_two_site_terms():
+            if abs(coefficient) > 0.0:
+                _require_nearest_neighbor(left, right)
+                self.add_local_term(
+                    coefficient,
+                    [
+                        (_operator_name(operators[0]), _chain_index(left)),
+                        (_operator_name(operators[1]), _chain_index(right)),
+                    ],
+                )
 
 
-def to_tenpy_model(model, bc_mps="finite", conserve=None):
-    """Convert a neutral tilted-field Ising model to TenPy's ``TFIChain``."""
-    j_xx, b_z, b_x = _extract_tfi_parameters(model)
-
-    tenpy_model = tenpy.models.tf_ising.TFIChain({
+def to_tenpy_model(model, bc_mps="finite", conserve=None, sort_charge=True):
+    """Convert a shared spin-half Pauli chain to a TenPy model."""
+    return SpinHalfPauliChain({
         "L": model.n_sites,
-        "J": j_xx,
-        "g": b_z,
+        "spin_model": model,
         "bc_MPS": bc_mps,
         "conserve": conserve,
+        "sort_charge": sort_charge,
     })
-
-    if abs(b_x) > 0.0:
-        tenpy_model.manually_call_init_H = True
-        tenpy_model.add_onsite(b_x, 0, _TENPY_PAULI_OPERATORS["x"])
-        tenpy_model.init_H_from_terms()
-
-    return tenpy_model

@@ -19,4 +19,5 @@ using a few python libraries `quimb`, `tenpy`, `qutip`, and `quspin`.
   - `timeevolution`: provides exact state evolution using `hamiltonian.evolve`.
 
 - `wrap_tenpy`: contains wrappers around `TenPy` classes and functions.
-  - `time_evolution`: provides time evolution using `TenPy`.
+  - `spinmodel`: converts shared spin models to direct TenPy chain models.
+  - `timeevolution`: provides MPS evolution using `TEBDEngine` and `TwoSiteTDVPEngine`.

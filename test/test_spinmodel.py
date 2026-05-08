@@ -285,11 +285,74 @@ def test_quimb_mps_helpers():
     assert max_bond_dimension(mps) == 1
 
 
-def test_tenpy_adapter_builds_model():
+def test_tenpy_adapter_builds_direct_pauli_chain():
     pytest.importorskip("tenpy")
+    from tenpy.networks.mps import MPS
 
     from wrap_tenpy.spinmodel import to_tenpy_model
 
-    model = tilted_field_ising_1d(3, j_xx=0.1, b_z=1.0, b_x=0.15)
+    model = tilted_field_ising_1d(2, j_xx=0.0, b_z=1.0, b_x=0.0)
+    tenpy_model = to_tenpy_model(model, conserve=None)
+    psi = MPS.from_product_state(
+        tenpy_model.lat.mps_sites(),
+        ['up'] * model.n_sites,
+        bc=tenpy_model.lat.bc_MPS,
+        dtype=complex,
+        unit_cell_width=tenpy_model.lat.mps_unit_cell_width,
+    )
 
-    assert to_tenpy_model(model) is not None
+    assert len(tenpy_model.H_bond) == model.n_sites
+    assert np.isclose(tenpy_model.H_MPO.expectation_value(psi), 2.0)
+
+
+def test_tenpy_tebd_evolution_and_marginal_helpers():
+    pytest.importorskip("tenpy")
+
+    from wrap_tenpy.spinmodel import to_tenpy_model
+    from wrap_tenpy.timeevolution import (
+        local_marginal_density_matrix,
+        manyspin_product_mps,
+        max_bond_dimension,
+        solve_mps_history,
+    )
+
+    model = tilted_field_ising_1d(2, j_xx=0.0, b_z=0.2, b_x=0.0)
+    tenpy_model = to_tenpy_model(model, conserve=None)
+    initial_mps = manyspin_product_mps(
+        tenpy_model.lat.mps_sites(),
+        np.pi / 2,
+        0.0,
+        bc=tenpy_model.lat.bc_MPS,
+        unit_cell_width=tenpy_model.lat.mps_unit_cell_width,
+    )
+    tlist = np.array([0.0, 0.05])
+
+    df_mps, mps_list = solve_mps_history(
+        tenpy_model,
+        initial_mps,
+        tlist,
+        algorithm="TEBD",
+        evolution_params={"order": 2, "N_steps": 1},
+        trunc_params={"chi_max": 4, "svd_min": 1e-12},
+        metadata={"bonddim": 4},
+    )
+
+    assert len(mps_list) == len(tlist)
+    assert np.allclose(df_mps["time"], tlist)
+    assert list(df_mps["ix_time"]) == [0, 1]
+    assert max_bond_dimension(mps_list[-1]) <= 4
+
+    rho = local_marginal_density_matrix(mps_list[-1], (0,))
+    assert rho.shape == (2, 2)
+    assert np.isclose(np.trace(rho.to_ndarray()), 1.0)
+
+    df_tdvp, tdvp_mps_list = solve_mps_history(
+        tenpy_model,
+        initial_mps,
+        np.array([0.0, 0.01]),
+        algorithm="TDVP",
+        trunc_params={"chi_max": 4},
+        metadata={"bonddim": 4},
+    )
+    assert len(tdvp_mps_list) == 2
+    assert list(df_tdvp["ix_time"]) == [0, 1]
