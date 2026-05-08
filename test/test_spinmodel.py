@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import warnings
 
 from manybody_util.spinmodel import (
     nearest_neighbor_edges_1d,
@@ -62,15 +63,34 @@ def test_tilted_field_ising_1d_expands_terms():
 
 def test_qutip_adapter_constructs_hamiltonian_terms():
     pytest.importorskip("qutip")
-    pytest.importorskip("qutip.qip.operations")
+    pytest.importorskip("qutip_qip.operations")
 
     from wrap_qutip.spinmodel import to_qutip_hamiltonian
 
     model = tilted_field_ising_1d(3, j_xx=0.1, b_z=1.0, b_x=0.15)
-    hamiltonian = to_qutip_hamiltonian(model).construct_hamiltonian_qutip()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        hamiltonian = to_qutip_hamiltonian(model).construct_hamiltonian_qutip()
 
     assert len(hamiltonian) == 8
     assert hamiltonian[0].dims == [[2, 2, 2], [2, 2, 2]]
+
+
+def test_qutip_quimb_conversion_uses_modern_qobj_api():
+    qutip = pytest.importorskip("qutip")
+    pytest.importorskip("quimb.tensor")
+
+    from conversions.convquimbqutip import (
+        convert_qutip_ket_to_quimb_mps,
+        convert_quimb_mp_to_qutip_qobj,
+    )
+
+    ket = qutip.tensor([qutip.basis(2, 0), qutip.basis(2, 1)])
+    mps = convert_qutip_ket_to_quimb_mps(ket)
+    reconstructed = convert_quimb_mp_to_qutip_qobj(mps)
+
+    assert reconstructed.dims == ket.dims
+    assert np.isclose(abs(ket.overlap(reconstructed)), 1.0)
 
 
 def test_quimb_adapter_builds_spinham1d():

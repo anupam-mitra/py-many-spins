@@ -29,7 +29,7 @@ def tenpy_mps_to_qutip_qobj (mps):
     '''
     Converts a matrix product state represented
     using a `tenpy` implementation in `tenpy.networks.mps.MPS`
-    to a ket represented as `qutip.qobj.Qobj`
+    to a ket represented as `qutip.Qobj`
     by calculating each probability amplitude
 
     
@@ -50,7 +50,7 @@ def tenpy_mps_to_qutip_qobj (mps):
     
         amp[j] = basis_mps.overlap(mps)
      
-    qutip_qobj = qutip.qobj.Qobj(amp, dims=[mps.dim, [1]*len(mps.dim)])
+    qutip_qobj = qutip.Qobj(amp.reshape((-1, 1)), dims=[mps.dim, [1]])
     
     return qutip_qobj
 

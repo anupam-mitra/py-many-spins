@@ -11,6 +11,7 @@ import os
 import time
 
 from numpy import pi, sqrt
+from qutip_qip.operations import expand_operator
 
 import quimb
 import quimb.tensor
@@ -45,26 +46,27 @@ tlist = np.linspace(tInitial, tFinal, n_steps)
 # Hamiltonian
 sigmaz = qutip.sigmaz()
 sigmax = qutip.sigmax()
+dims = [2] * n_spins
 
 qutip_ham_int_list = [jInteraction * \
-    qutip.qip.operations.expand_operator(qutip.tensor(sigmaz, sigmaz), n_spins, targets=(n, n+1)) \
+    expand_operator(qutip.tensor(sigmaz, sigmaz), dims=dims, targets=(n, n+1)) \
     for n in range(n_spins-1)]
 
 # qutip_ham_int_list = [jInteraction * 1/(n1-n2)**2 * \
-#                           qutip.qip.operations.expand_operator(qutip.tensor(sigmaz, sigmaz), n_spins, targets=(n2, n1)) \
+#                           expand_operator(qutip.tensor(sigmaz, sigmaz), dims=dims, targets=(n2, n1)) \
 #                           for n1, n2 in itertools.combinations(range(n_spins), 2)]
 
 qutip_ham_int_list = [jInteraction * \
-    qutip.qip.operations.expand_operator(qutip.tensor(sigmaz, sigmaz), n_spins, targets=(na, nb)) \
+    expand_operator(qutip.tensor(sigmaz, sigmaz), dims=dims, targets=(na, nb)) \
     for na, nb in itertools.combinations(range(n_spins), 2)]
 
 
 qutip_ham_magfield_x_list = [bMagField * \
-    qutip.qip.operations.expand_operator(sigmax, n_spins, targets=(n,)) \
+    expand_operator(sigmax, dims=dims, targets=(n,)) \
         for n in range(n_spins)] 
 
 qutip_ham_magfield_z_list = [bMagField * \
-    qutip.qip.operations.expand_operator(sigmaz, n_spins, targets=(n,)) \
+    expand_operator(sigmaz, dims=dims, targets=(n,)) \
         for n in range(n_spins)] 
 
 qutip_ham_magfield_list = qutip_ham_magfield_x_list
@@ -80,8 +82,8 @@ def qutip_dynamics_se_setup ():
     Returns
     -------
     hamiltonian:
-        Hamiltonian terms represented as `qutip.qobj.Qobj` or an iterable containing
-        terms of the type `qutip.qobj.Qobj`
+        Hamiltonian terms represented as `qutip.Qobj` or an iterable containing
+        terms of the type `qutip.Qobj`
     
 
 
@@ -97,14 +99,14 @@ def qutip_dynamics_se_run (hamiltonians, tlist, state_initial, \
     ----------
 
     hamiltonians: 
-        Hamiltonian terms represented as `qutip.qobj.Qobj` or an iterable containing
-        terms of the type `qutip.qobj.Qobj`
+        Hamiltonian terms represented as `qutip.Qobj` or an iterable containing
+        terms of the type `qutip.Qobj`
 
     tlist:
         List of time instants at which to calculate the state or unitary
 
     state_initial:
-        The initial state represented as an object of type `qutip.qobj.Qobj`
+        The initial state represented as an object of type `qutip.Qobj`
 
     callback:
         Function to be called on the state at every instant during the time evolution
@@ -193,13 +195,13 @@ if FLAG_CALC_INFIDELITY:
             psi = states_multi_sesolve[ix_bonddim, ix_t]
 
             inner_products[ix_bonddim, ix_t] = \
-                np.abs(psi.dag() * psi_ref)[0, 0]**2
+                np.abs(psi.dag() * psi_ref)**2
                 
 
 
 def qutip_create_manybodyoperators (terms, n_sites):
     '''
-    Creates many body operators for spin 1/2 as objects of type `qutip.qobj.Qobj`
+    Creates many body operators for spin 1/2 as objects of type `qutip.Qobj`
     from terms describing the operator and the location
 
     NOTE: This calculation can be cached by making an object for this.
@@ -215,7 +217,7 @@ def qutip_create_manybodyoperators (terms, n_sites):
     Returns
     -------
     operator:
-        Many body operator represented as an object of type `qutip.qobj.Qobj`
+        Many body operator represented as an object of type `qutip.Qobj`
     '''
 
     operator_list = []
@@ -246,8 +248,11 @@ def qutip_create_manybodyoperators (terms, n_sites):
 
     operator_nontrivialsites = qutip.tensor(operator_list)
 
-    operator = qutip.qip.operations.expand_operator(operator_nontrivialsites, n_sites, \
-        targets=site_list)
+    operator = expand_operator(
+        operator_nontrivialsites,
+        dims=[2] * n_sites,
+        targets=site_list,
+    )
 
     return operator
 

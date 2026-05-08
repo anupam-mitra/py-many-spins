@@ -28,7 +28,7 @@ class EntanglementEntropyCalculator(QutipSingleSimulationCalculator):
         for s in range(self.n_steps):
             psi = self.dynamics.states[s]
             self.entropies[s] = \
-                qutip.entropy.entropy_vn(qutip.ptrace(psi, self.keep), self.base)
+                qutip.entropy_vn(psi.ptrace(self.keep), self.base)
         
     
 def most_probable_state (rho, r=1):
@@ -146,7 +146,7 @@ class TruncationCalculatorOld:
             trunc_states_flat[ix] = \
                 convquimbqutip.convert_quimb_mp_to_qutip_qobj(quimb_mps_curr)
             
-            norm = np.sqrt((trunc_states_flat[ix].dag() * trunc_states_flat[ix])[0, 0])
+            norm = trunc_states_flat[ix].norm()
             
             trunc_states_flat[ix] = trunc_states_flat[ix] / norm
         

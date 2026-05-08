@@ -59,7 +59,7 @@ class StateMomentCalculation:
 
 ######################################################################################
 class QutipQobjEnsemble(StateEnsemble):
-    """Represents an ensemble of pure stateseach represented as `qutip.qobj.Qobj`"""
+    """Represents an ensemble of pure states each represented as `qutip.Qobj`."""
 
     def __init__(self, states, weights=None):
         StateEnsemble.__init__(self, states, weights)
@@ -141,5 +141,5 @@ class EmpiricalHaarEnsemble:
     def gen_samples(self):
 
         for ix in range(len(self.samples), self.size):
-            ket = qutip.rand_ket(self.vector_dim, dims=self.dims)
+            ket = qutip.rand_ket(self.dims[0])
             self.samples.append(ket)

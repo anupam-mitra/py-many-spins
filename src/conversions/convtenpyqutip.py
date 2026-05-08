@@ -11,7 +11,7 @@ def tenpy_mps_to_probamp (mps):
     '''
     Converts a matrix product state represented
     using a `tenpy` implementation in `tenpy.networks.mps.MPS`
-    to a ket represented as `qutip.qobj.Qobj`
+    to a ket represented as `qutip.Qobj`
     by calculating each probability amplitude
 
 
@@ -34,14 +34,14 @@ def tenpy_mps_to_probamp (mps):
 
     return amps
     #
-    # qutip_qobj = qutip.qobj.Qobj(amp, dims=[mps.dim, [1]*len(mps.dim)])
+    # qutip_qobj = qutip.Qobj(amp, dims=[mps.dim, [1]])
     #
     # return qutip_qobj
 
 
 if __name__ == '__main__':
     n_sites = 8
-    psi = qutip.rand_ket(2 ** n_sites, dims=[[2]*n_sites, [1]*n_sites])
+    psi = qutip.rand_ket([2] * n_sites)
 
     ''' I do not understand the concept of `LegCharge`, `ChargeInfo`.'''
     chinfo = tenpy.linalg.np_conserved.ChargeInfo([1], ['2*Sz'])
@@ -51,4 +51,4 @@ if __name__ == '__main__':
     p  = tenpy.linalg.np_conserved.LegCharge.from_trivial(2, qconj=+1)
 
     psi_npconserved = tenpy.linalg.np_conserved.Array.from_ndarray(\
-        psi.data.toarray().reshape([2 for n in range(n_sites)]), [p for n in range(n_sites)])
+        psi.full().reshape([2 for n in range(n_sites)]), [p for n in range(n_sites)])

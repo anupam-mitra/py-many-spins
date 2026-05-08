@@ -78,7 +78,7 @@ if FLAG_SOLVE_ME:
 
 print('@', time.strftime('%Y-%m-%d %T'))
 
-psi = qutip.rand_ket(2**nSpins, dims=[[2]*nSpins, [1]*nSpins])
+psi = qutip.rand_ket([2] * nSpins)
 
 # import sys
 # sys.path.append('../conversions/')

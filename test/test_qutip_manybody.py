@@ -1,4 +1,6 @@
 import sys
+import warnings
+
 import qutip
 
 sys.path.append("../src")
@@ -24,7 +26,9 @@ def test_twolocal_hamiltonian():
         [jzz], [bx, bz],
         interact_graph)
 
-    h.construct_hamiltonian_qutip(nSpins)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        h.construct_hamiltonian_qutip(nSpins)
 
     h = manybodystateevolve.UniformTwoBodyInteraction(
         [(qutip.spin_Jz(1), qutip.spin_Jz(1))],
@@ -32,7 +36,9 @@ def test_twolocal_hamiltonian():
         [jzz], [bx, bz],
         interact_graph)
 
-    h.construct_hamiltonian_qutip(nSpins)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        h.construct_hamiltonian_qutip(nSpins)
     
 
 

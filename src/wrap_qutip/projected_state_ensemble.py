@@ -3,7 +3,7 @@ import qutip
 
 from . import ensembles
 
-def generate_basis_vectors(psi:qutip.qobj.Qobj):
+def generate_basis_vectors(psi: qutip.Qobj):
     """Generates a basis for the pure state
     space of `psi`"""
     
@@ -20,7 +20,7 @@ class ProjectedStateEnsemble(ensembles.StateEnsemble):
     """Represents a projected state ensemble"""
 
     def __init__(self, 
-        state:qutip.qobj.Qobj,
+        state: qutip.Qobj,
         selected_sites:tuple, 
         all_sites:tuple=None):
         
@@ -40,7 +40,7 @@ class ProjectedStateEnsemble(ensembles.StateEnsemble):
         self.project_meas_sites = \
             tuple(set(self.all_sites) - set(self.selected_sites))
 
-        project_meas_sample = qutip.ptrace(self.state, self.project_meas_sites)
+        project_meas_sample = self.state.ptrace(self.project_meas_sites)
 
         self.project_meas_basis = generate_basis_vectors(project_meas_sample)
         self.project_meas_povm = \
@@ -63,7 +63,7 @@ class ProjectedStateEnsemble(ensembles.StateEnsemble):
         # to obtain the reduce density matrix and selecting its
         # eigenvector with highest eigenvalue
         for ket in projected_states:
-            reduced_dm = qutip.ptrace(ket, self.selected_sites)
+            reduced_dm = ket.ptrace(self.selected_sites)
             projected_ket = reduced_dm.eigenstates()[1][-1]
 
             self.projected_states.append(projected_ket)

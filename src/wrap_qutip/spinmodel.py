@@ -1,5 +1,5 @@
 import qutip
-import qutip.qip.operations
+from qutip_qip.operations import expand_operator
 
 
 def _pauli_operator(operator):
@@ -35,9 +35,8 @@ class QutipSpinHalfPauliHamiltonian:
         for coefficient, operator, site in self.model.expanded_local_terms():
             h_local_terms.append(
                 coefficient
-                * qutip.qip.operations.expand_operator(
+                * expand_operator(
                     _pauli_operator(operator),
-                    self.model.n_sites,
                     targets=(site,),
                     dims=dims,
                 )
@@ -50,9 +49,8 @@ class QutipSpinHalfPauliHamiltonian:
             )
             h_interact_terms.append(
                 coefficient
-                * qutip.qip.operations.expand_operator(
+                * expand_operator(
                     local_operator,
-                    self.model.n_sites,
                     targets=(left, right),
                     dims=dims,
                 )

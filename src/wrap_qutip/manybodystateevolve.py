@@ -1,9 +1,8 @@
 import qutip
-import qutip.qip
-import qutip.qip.operations
 import itertools
 import numpy as np
 from numpy import sqrt
+from qutip_qip.operations import expand_operator
 
 import pickle
 
@@ -48,8 +47,8 @@ class UniformTwoBodyInteraction:
 
         for energy, operator in zip(self.energy_local, self.operators_local):
             h_local_terms += \
-                [energy * qutip.qip.operations.expand_operator(operator,
-                    n_spins, targets=(n,), dims=dims) \
+                [energy * expand_operator(operator,
+                    targets=(n,), dims=dims) \
                 for n in range(n_spins)]
 
         for l1, l2 in self.interact_graph.get_edges():
@@ -59,18 +58,18 @@ class UniformTwoBodyInteraction:
                 zip(self.energy_interaction, self.operators_interaction):
 
                 h_interact_terms += \
-                    [energy * weight * qutip.qip.operations.expand_operator(\
+                    [energy * weight * expand_operator(\
                         qutip.tensor(operator_pair[0], operator_pair[1]), \
-                        n_spins, targets=(l1, l2), dims=dims)]
+                        targets=(l1, l2), dims=dims)]
 
         if False:
 
             for energy, operator_pair in\
                 zip(self.energy_interaction, self.operators_interaction):
                 h_interact_terms += \
-                    [energy * qutip.qip.operations.expand_operator(\
+                    [energy * expand_operator(\
                             qutip.tensor(operator_pair[0], operator_pair[1]), \
-                            n_spins, targets=(n, n+1)) \
+                            targets=(n, n+1), dims=dims) \
                     for n in range(n_spins-1)]
 
         self.h_local_terms = h_local_terms
@@ -101,8 +100,8 @@ class UniformOneBodyDecoherence:
 
         for rate, operator in zip(self.rate_jump, self.operators_jump):
             jmp_local_terms += \
-                [sqrt(rate) * qutip.qip.operations.expand_operator(operator,
-                    n_spins, targets=(n,)) \
+                [sqrt(rate) * expand_operator(operator,
+                    targets=(n,), dims=[2] * n_spins) \
                 for n in range(n_spins)]
 
         self.jmp_local_terms = jmp_local_terms
@@ -127,15 +126,15 @@ class QuantumDynamicsStateEvolution:
 
     def get_times_list(self):
 
-        if hasattr(self, times_list):
+        if hasattr(self, "times_list"):
             return self.times_list
         else:
             return None
 
     def get_states_list(self):
 
-        if hasattr(self, times_list):
-            return self.times_list
+        if hasattr(self, "states"):
+            return self.states
         else:
             return None
 
@@ -163,8 +162,7 @@ class QutipSESolve (QuantumDynamicsStateEvolution):
         self.t_list =  np.linspace(self.t_initial, self.t_final, self.n_steps)
         self.hamiltonians = self.hamiltonian_model.construct_hamiltonian_qutip(self.n_dof)
 
-        self.resultse = qutip.sesolve(self.hamiltonians, self.initial_state, \
-            self.t_list)
+        self.resultse = qutip.sesolve(self.hamiltonians, self.initial_state, self.t_list)
 
         self.times_list = self.resultse.times
         #self.states = np.asarray(self.resultse.states, dtype=object)
@@ -198,12 +196,13 @@ class QutipMCSolve (QuantumDynamicsStateEvolution):
         self.hamiltonians = self.hamiltonian_model.construct_hamiltonian_qutip(self.n_dof)
         self.jumpops = self.decoherence_model.construct_local_jumpops(self.n_dof)
 
-        self.resultmc = qutip.mcsolve(\
-            self.hamiltonians, \
-            self.initial_state, \
-            self.t_list, \
-            c_ops=self.jumpops, \
-            ntraj=self.n_trajectories)
+        self.resultmc = qutip.mcsolve(
+            self.hamiltonians,
+            self.initial_state,
+            self.t_list,
+            c_ops=self.jumpops,
+            ntraj=self.n_trajectories,
+        )
 
         self.times_list = self.resultmc.times
         self.states = np.asarray(self.resultmc.states, dtype=object)
@@ -235,11 +234,12 @@ class QutipMESolve (QuantumDynamicsStateEvolution):
         self.hamiltonians = self.hamiltonian_model.construct_hamiltonian_qutip(self.n_dof)
         self.jumpops = self.decoherence_model.construct_local_jumpops(self.n_dof)
 
-        self.resultme = qutip.mesolve(\
-            self.hamiltonians, \
-            self.initial_state, \
-            self.t_list, \
-            c_ops=self.jumpops)
+        self.resultme = qutip.mesolve(
+            self.hamiltonians,
+            self.initial_state,
+            self.t_list,
+            c_ops=self.jumpops,
+        )
 
         self.times_list = self.resultme.times
         #self.states = np.asarray(self.resultme.states, dtype=object)
@@ -293,13 +293,13 @@ class ManySpinProductState:
 
     def get_qutip_ket (self):
         if self.qutip_ket == None:
-            self._calc_qutip_ket(self)
+            self._calc_qutip_ket()
 
         return self.qutip_ket
 
     def _calc_qutip_dm(self):
         if self.qutip_ket == None:
-            self._calc_qutip_ket(self)
+            self._calc_qutip_ket()
 
         self.qutip_dm = qutip.ket2dm(self.qutip_ket)
 

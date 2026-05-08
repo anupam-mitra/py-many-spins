@@ -12,7 +12,7 @@ def qutip_calc_manyspin_moment (state, ops, ls, n_spins):
     if len(ls) == n_spins:
         rho_marginal = state
     else:
-        rho_marginal = qutip.ptrace(state, ls)
+        rho_marginal = state.ptrace(ls)
     op_expanded = qutip.tensor(*ops)
     moment = qutip.expect(op_expanded, rho_marginal) \
         / rho_marginal.tr()

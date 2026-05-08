@@ -1,6 +1,5 @@
 import qutip
-import quimb
-import quimb.tensor
+import quimb.tensor as qtn
 import numpy as np
 
 
@@ -22,20 +21,18 @@ def quimb_mp_to_qutip_qobj (quimb_mp):
     '''
     data = quimb_mp.to_dense()
 
-    if isinstance(quimb_mp, quimb.tensor.tensor_1d.MatrixProductState):
-        dims = [[quimb_mp.phys_dim()] * quimb_mp.L, \
-                [1] * quimb_mp.L ]
-        shape = (quimb_mp.phys_dim()** quimb_mp.L, 1)
-    elif isinstance(quimb_mp, quimb.tensor.tensor_1d.MatrixProductOperator):
-        dims = [[quimb_mp.phys_dim()] * quimb_mp.L, \
-                [quimb_mp.phys_dim()] * quimb_mp.L]
-        shape = (quimb_mp.phys_dim()** quimb_mp.L, quimb_mp.phys_dim()** quimb_mp.L)
+    if isinstance(quimb_mp, qtn.MatrixProductState):
+        dims = [[quimb_mp.phys_dim()] * quimb_mp.L, [1]]
+    elif isinstance(quimb_mp, qtn.MatrixProductOperator):
+        dims = [
+            [quimb_mp.phys_dim()] * quimb_mp.L,
+            [quimb_mp.phys_dim()] * quimb_mp.L,
+        ]
         data = np.asarray(data)
     else:
         dims=None
-        shape=None
-        
-    qutip_qobj = qutip.qobj.Qobj(data, dims=dims, shape=shape)
+
+    qutip_qobj = qutip.Qobj(data, dims=dims)
 
     return qutip_qobj
 
@@ -65,8 +62,8 @@ def qutip_ket_to_quimb_mps (qutip_ket, cutoff=None, cutoff_mode='sum2', max_bond
         split_opts['max_bond'] = max_bond
         
 
-    quimb_mps = quimb.tensor.tensor_1d.MatrixProductState.from_dense(\
-                    qutip_ket.data, qutip_ket.dims[0], \
+    quimb_mps = qtn.MatrixProductState.from_dense(\
+                    qutip_ket.full(), qutip_ket.dims[0], \
                     **split_opts)
 
     return quimb_mps
@@ -80,7 +77,7 @@ if __name__ == '__main__':
     
     dimensions = [[2]*n_spins]
     
-    qutip_ket = qutip.rand_ket_haar(2**n_spins, dims=dimensions + [[1]*n_spins])
+    qutip_ket = qutip.rand_ket(dimensions[0])
 
     quimb_mps = qutip_ket_to_quimb_mps(qutip_ket)
     
