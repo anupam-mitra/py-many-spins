@@ -76,6 +76,40 @@ def test_qutip_adapter_constructs_hamiltonian_terms():
     assert hamiltonian[0].dims == [[2, 2, 2], [2, 2, 2]]
 
 
+def test_qutip_sesolve_wrapper_and_marginal_helpers():
+    pytest.importorskip("qutip")
+    pytest.importorskip("qutip_qip.operations")
+
+    from wrap_qutip.spinmodel import to_qutip_hamiltonian
+    from wrap_qutip.timeevolution import (
+        SESolveWrapper,
+        local_marginal_density_matrix,
+        manyspin_product_state,
+    )
+
+    model = tilted_field_ising_1d(2, j_xx=0.0, b_z=0.2, b_x=0.0)
+    initial_state = manyspin_product_state(2, np.pi / 2, 0.0)
+    tlist = np.array([0.0, 0.1, 0.3])
+
+    wrapper = SESolveWrapper(
+        to_qutip_hamiltonian(model),
+        initial_state,
+        tlist,
+        metadata={"bonddim": None},
+    )
+    wrapper.evolve()
+
+    df_states, states = wrapper.get_state_history_df()
+    assert len(states) == len(tlist)
+    assert np.allclose(df_states["time"], tlist)
+    assert states[0].dims == initial_state.dims
+    assert np.isclose(states[-1].norm(), 1.0)
+
+    rho = local_marginal_density_matrix(states[-1], (0,))
+    assert rho.dims == [[2], [2]]
+    assert np.isclose(rho.tr(), 1.0)
+
+
 def test_qutip_quimb_conversion_uses_modern_qobj_api():
     qutip = pytest.importorskip("qutip")
     pytest.importorskip("quimb.tensor")

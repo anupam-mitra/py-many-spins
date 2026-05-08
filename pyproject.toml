@@ -40,7 +40,6 @@ tenpy = [
 qutip = [
   "qutip",
   "qutip-qip",
-  "matplotlib",
 ]
 quimb = [
   "quimb",
@@ -53,7 +52,6 @@ all = [
   "h5py",
   "qutip",
   "qutip-qip",
-  "matplotlib",
   "quimb",
   "pytest>=8",
 ]

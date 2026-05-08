@@ -1,6 +1,9 @@
+import logging
+
 import numpy as np
 
 import tenpy
+import tenpy.networks.mps
 import tenpy.networks.site
 import tenpy.linalg.np_conserved
 
@@ -32,14 +35,6 @@ def gen_random_spinhalf_MPS(n_spins:int, dtype=float):
     psi /= np.linalg.norm(psi)
 
     psi = psi.reshape((2,)*n_spins)
-    logging.info("Creating charge info")
-    chargeinfo:tenpy.linalg.np_conserved.charges \
-        = tenpy.linalg.np_conserved.charges.ChargeInfo([1], ["2*Sz"])
-    
-    logging.info("Creating physical leg from charge info")
-    p_leg:tenpy.linalg.np_conserved.LegCharge \
-        = tenpy.linalg.np_conserved.LegCharge.from_qflat(chargeinfo, [[1],␣ ↪[-1]])
-    
     logging.info("Creating npc.Array object with physical legs")
     psi_npc:tenpy.linalg.np_conserved.Array \
         = tenpy.linalg.np_conserved.Array.from_ndarray_trivial(psi, labels=['p%d' % l for l in range(n_spins)])

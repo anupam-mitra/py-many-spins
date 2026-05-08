@@ -4,8 +4,6 @@ import uuid
 import pandas
 import qutip
 
-from .manybodystateevolve import QutipSESolve
-
 
 def spinhalf_state(ang_polar, ang_azimuth):
     """Create a single-spin pure state pointing along the given angles."""
@@ -37,17 +35,17 @@ class SESolveWrapper:
 
     def evolve(self):
         n_dof = len(self.initial_state.dims[0])
-        solver = QutipSESolve(
-            self.tlist[0],
-            self.tlist[-1],
-            len(self.tlist),
-            self.hamiltonian_model,
-            n_dof,
-            self.initial_state,
-        )
-        solver.run()
+        self.hamiltonian_terms = self.hamiltonian_model.construct_hamiltonian_qutip(n_dof)
+        if not self.hamiltonian_terms:
+            raise ValueError("Hamiltonian model produced no terms")
 
-        states = list(solver.states)
+        self.hamiltonian = sum(
+            self.hamiltonian_terms[1:],
+            self.hamiltonian_terms[0],
+        )
+        self.result = qutip.sesolve(self.hamiltonian, self.initial_state, self.tlist)
+
+        states = list(self.result.states)
         if len(states) != len(self.tlist):
             raise ValueError(
                 "QuTiP returned %d states for %d requested times"
