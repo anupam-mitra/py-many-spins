@@ -1,8 +1,10 @@
 import numpy as np
 import pytest
-import warnings
 
 from manybody_util.spinmodel import (
+    SpinHalfPauliModel,
+    TwoSiteTerm,
+    WeightedEdge,
     nearest_neighbor_edges_1d,
     tilted_field_ising_1d,
 )
@@ -62,44 +64,70 @@ def test_tilted_field_ising_1d_expands_terms():
 
 
 def test_qutip_adapter_constructs_hamiltonian_terms():
-    pytest.importorskip("qutip")
-    pytest.importorskip("qutip_qip.operations")
+    qutip = pytest.importorskip("qutip")
 
     from wrap_qutip.spinmodel import to_qutip_hamiltonian
 
     model = tilted_field_ising_1d(3, j_xx=0.1, b_z=1.0, b_x=0.15)
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", DeprecationWarning)
-        hamiltonian = to_qutip_hamiltonian(model).construct_hamiltonian_qutip()
+    hamiltonian = to_qutip_hamiltonian(model)
 
-    assert len(hamiltonian) == 8
-    assert hamiltonian[0].dims == [[2, 2, 2], [2, 2, 2]]
+    identity = qutip.qeye(2)
+    sigmax = qutip.sigmax()
+    sigmaz = qutip.sigmaz()
+    expected = (
+        qutip.tensor(sigmaz, identity, identity)
+        + qutip.tensor(identity, sigmaz, identity)
+        + qutip.tensor(identity, identity, sigmaz)
+        + 0.15 * qutip.tensor(sigmax, identity, identity)
+        + 0.15 * qutip.tensor(identity, sigmax, identity)
+        + 0.15 * qutip.tensor(identity, identity, sigmax)
+        + 0.1 * qutip.tensor(sigmax, sigmax, identity)
+        + 0.1 * qutip.tensor(identity, sigmax, sigmax)
+    )
+
+    assert hamiltonian.dims == [[2, 2, 2], [2, 2, 2]]
+    assert np.allclose((hamiltonian - expected).full(), 0.0)
 
 
-def test_qutip_sesolve_wrapper_and_marginal_helpers():
+def test_qutip_adapter_embeds_noncontiguous_two_site_terms():
+    qutip = pytest.importorskip("qutip")
+
+    from wrap_qutip.spinmodel import to_qutip_hamiltonian
+
+    model = SpinHalfPauliModel(
+        n_sites=3,
+        two_site_terms=(
+            TwoSiteTerm(0.7, ("x", "z"), (WeightedEdge(2, 0),)),
+        ),
+    )
+    hamiltonian = to_qutip_hamiltonian(model)
+    expected = 0.7 * qutip.tensor(qutip.sigmaz(), qutip.qeye(2), qutip.sigmax())
+
+    assert hamiltonian.dims == [[2, 2, 2], [2, 2, 2]]
+    assert np.allclose((hamiltonian - expected).full(), 0.0)
+
+
+def test_qutip_sesolve_state_history_and_marginal_helpers():
     pytest.importorskip("qutip")
-    pytest.importorskip("qutip_qip.operations")
 
     from wrap_qutip.spinmodel import to_qutip_hamiltonian
     from wrap_qutip.timeevolution import (
-        SESolveWrapper,
         local_marginal_density_matrix,
         manyspin_product_state,
+        solve_state_history,
     )
 
     model = tilted_field_ising_1d(2, j_xx=0.0, b_z=0.2, b_x=0.0)
     initial_state = manyspin_product_state(2, np.pi / 2, 0.0)
     tlist = np.array([0.0, 0.1, 0.3])
 
-    wrapper = SESolveWrapper(
+    df_states, states = solve_state_history(
         to_qutip_hamiltonian(model),
         initial_state,
         tlist,
         metadata={"bonddim": None},
     )
-    wrapper.evolve()
 
-    df_states, states = wrapper.get_state_history_df()
     assert len(states) == len(tlist)
     assert np.allclose(df_states["time"], tlist)
     assert states[0].dims == initial_state.dims

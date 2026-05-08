@@ -11,9 +11,8 @@ using a few python libraries `quimb`, `tenpy` and `qutip`.
   - `distance_measures`:
 
 - `wrap_qutip`: contains wrappers around `QuTiP` classes and functions.
-  - `ensembles`: provides calculations with state ensembles using `QuTiP`.
-  - `models`: provides construction of models using `QuTiP`.
-  - `time_evolution`: provides time evolution using `QuTiP`.
+  - `spinmodel`: converts shared spin models to exact QuTiP Hamiltonians.
+  - `timeevolution`: provides exact state evolution using `qutip.sesolve`.
 
 - `wrap_tenpy`: contains wrappers around `TenPy` classes and functions.
   - `time_evolution`: provides time evolution using `TenPy`.

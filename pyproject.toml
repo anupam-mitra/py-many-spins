@@ -39,7 +39,6 @@ tenpy = [
 ]
 qutip = [
   "qutip",
-  "qutip-qip",
 ]
 quimb = [
   "quimb",
@@ -51,7 +50,6 @@ all = [
   "physics-tenpy",
   "h5py",
   "qutip",
-  "qutip-qip",
   "quimb",
   "pytest>=8",
 ]

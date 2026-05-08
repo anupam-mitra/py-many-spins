@@ -21,7 +21,7 @@ import config
 
 from manybody_util.spinmodel import tilted_field_ising_1d
 from wrap_qutip.spinmodel import to_qutip_hamiltonian
-from wrap_qutip.timeevolution import SESolveWrapper, manyspin_product_state
+from wrap_qutip.timeevolution import manyspin_product_state, solve_state_history
 
 
 if __name__ == '__main__':
@@ -72,7 +72,7 @@ if __name__ == '__main__':
         b_x=b_parallel,
         bc="open",
     )
-    hamiltonian_model = to_qutip_hamiltonian(spin_model)
+    hamiltonian = to_qutip_hamiltonian(spin_model)
 
     initial_state = manyspin_product_state(systemsize, theta, phi)
 
@@ -87,16 +87,12 @@ if __name__ == '__main__':
     walltime_begin = time.time()
     uuid_string_bonddim = '%s' % uuid.uuid4()
 
-    wrap = SESolveWrapper(
-        hamiltonian_model,
+    df_states, state_list = solve_state_history(
+        hamiltonian,
         initial_state,
         t_list,
         metadata={"bonddim": bonddim},
     )
-    wrap.evolve()
-    logging.info("wrap = %s" % (wrap,))
-
-    df_states, state_list = wrap.get_mps_history_df()
     df_states["uuid_bonddim"] = uuid_string_bonddim
 
     param_dict = {

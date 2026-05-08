@@ -45,8 +45,6 @@ class MPSTrajectoryResult:
 
 import numpy as np
 import quimb.tensor as qtn
-import qutip
-from qutip_qip.operations import expand_operator
 
 ################################################################################
 class QuimbTEBD1DSolver:
@@ -96,75 +94,3 @@ class QuimbTEBD1DSolver:
             )
 
             self.states[t_index] = mps_current
-
-################################################################################
-class UniformTwoBodyInteraction:
-    """
-    Represents a hamiltonian with two body interactions and local terms
-    """
-
-    def __init__ (self, \
-        operators_interaction,
-        operators_local,
-        energy_interaction,
-        energy_local,
-        interact_graph=None):
-        
-        self.operators_interaction = operators_interaction
-        self.operators_local = operators_local
-        self.energy_interaction = energy_interaction
-        self.energy_local = energy_local
-
-        self.interact_graph = interact_graph
-
-    def construct_hamiltonian_qutip(self, n_spins):
-        '''
-        Constructs a Hamiltonian in a qutip representation
-        '''
-
-        h_local_terms = []
-        h_interact_terms = []
-        if self.operators_local:
-            dim_local = self.operators_local[0].dims[0][0]
-        else:
-            dim_local = self.operators_interaction[0][0].dims[0][0]
-        dims = [dim_local] * n_spins
-
-        #for ll in range(len(local_ops)):
-            #builder.add_term(local_energies[ll], local_ops[ll])
-
-        assert len(self.operators_interaction) == len(self.energy_interaction)
-
-        for energy, operator in zip(self.energy_local, self.operators_local):
-            h_local_terms += \
-                [energy * expand_operator(operator,
-                    dims=dims, targets=(n,)) \
-                for n in range(n_spins)]
-
-        for l1, l2 in self.interact_graph.get_edges():
-            weight = self.interact_graph.get_edge(l1, l2)
-            
-            for energy, operator_pair in\
-                zip(self.energy_interaction, self.operators_interaction):
-                
-                h_interact_terms += \
-                    [energy * weight * expand_operator(\
-                        qutip.tensor(operator_pair[0], operator_pair[1]), \
-                        dims=dims, targets=(l1, l2))]
-                
-        if False:
-
-            for energy, operator_pair in\
-                zip(self.energy_interaction, self.operators_interaction):
-                h_interact_terms += \
-                    [energy * expand_operator(\
-                            qutip.tensor(operator_pair[0], operator_pair[1]), \
-                            dims=dims, targets=(n, n+1)) \
-                    for n in range(n_spins-1)]
-
-        self.h_local_terms = h_local_terms
-        self.h_interact_terms = h_interact_terms
-
-        hamiltonians = h_local_terms + h_interact_terms
-        return hamiltonians
-################################################################################

@@ -1,5 +1,4 @@
 import qutip
-from qutip_qip.operations import expand_operator
 
 
 def _pauli_operator(operator):
@@ -12,62 +11,52 @@ def _pauli_operator(operator):
     raise ValueError("unsupported Pauli operator %r" % (operator,))
 
 
-class QutipSpinHalfPauliHamiltonian:
-    """QuTiP Hamiltonian adapter for a neutral spin-half Pauli model."""
+def _embed_spinhalf_operator(n_sites, site_operators):
+    # This helper is intentionally narrow for spin-half Pauli chains. If future
+    # models need general subsystem embedding, prefer qutip-qip expand_operator.
+    operators_by_site = dict(site_operators)
+    if len(operators_by_site) != len(site_operators):
+        raise ValueError("multiple operators on the same site are not supported")
+    if any(site < 0 or site >= n_sites for site in operators_by_site):
+        raise ValueError("operator site exceeds n_sites")
 
-    def __init__(self, model):
-        self.model = model
-        self.dim_local = [2 for _ in range(model.n_sites)]
+    factors = []
+    for site in range(n_sites):
+        factors.append(operators_by_site.get(site, qutip.qeye(2)))
 
-    def construct_hamiltonian_qutip(self, n_spins=None):
-        if n_spins is None:
-            n_spins = self.model.n_sites
-        if n_spins != self.model.n_sites:
-            raise ValueError(
-                "n_spins=%d does not match model.n_sites=%d"
-                % (n_spins, self.model.n_sites)
-            )
+    return qutip.tensor(factors)
 
-        dims = [2] * self.model.n_sites
-        h_local_terms = []
-        h_interact_terms = []
 
-        for coefficient, operator, site in self.model.expanded_local_terms():
-            h_local_terms.append(
-                coefficient
-                * expand_operator(
-                    _pauli_operator(operator),
-                    targets=(site,),
-                    dims=dims,
-                )
-            )
-
-        for coefficient, operators, left, right in self.model.expanded_two_site_terms():
-            local_operator = qutip.tensor(
-                _pauli_operator(operators[0]),
-                _pauli_operator(operators[1]),
-            )
-            h_interact_terms.append(
-                coefficient
-                * expand_operator(
-                    local_operator,
-                    targets=(left, right),
-                    dims=dims,
-                )
-            )
-
-        hamiltonian_terms = h_local_terms + h_interact_terms
-        self.h_local_terms = h_local_terms
-        self.h_interact_terms = h_interact_terms
-        self.hamiltonian_terms = hamiltonian_terms
-        return hamiltonian_terms
+def _zero_hamiltonian(n_sites):
+    return 0 * qutip.tensor([qutip.qeye(2) for _ in range(n_sites)])
 
 
 def to_qutip_hamiltonian(model):
-    """Return an object compatible with the existing QuTiP evolution wrappers."""
-    return QutipSpinHalfPauliHamiltonian(model)
+    """Convert a neutral spin-half Pauli model to a QuTiP Hamiltonian."""
+    terms = []
 
+    for coefficient, operator, site in model.expanded_local_terms():
+        terms.append(
+            coefficient
+            * _embed_spinhalf_operator(
+                model.n_sites,
+                [(site, _pauli_operator(operator))],
+            )
+        )
 
-def to_qutip_terms(model, n_spins=None):
-    """Return expanded QuTiP Hamiltonian terms for ``model``."""
-    return to_qutip_hamiltonian(model).construct_hamiltonian_qutip(n_spins)
+    for coefficient, operators, left, right in model.expanded_two_site_terms():
+        terms.append(
+            coefficient
+            * _embed_spinhalf_operator(
+                model.n_sites,
+                [
+                    (left, _pauli_operator(operators[0])),
+                    (right, _pauli_operator(operators[1])),
+                ],
+            )
+        )
+
+    if not terms:
+        return _zero_hamiltonian(model.n_sites)
+
+    return sum(terms[1:], terms[0])

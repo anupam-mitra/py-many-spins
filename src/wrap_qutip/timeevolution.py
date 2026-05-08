@@ -7,7 +7,7 @@ import qutip
 
 def spinhalf_state(ang_polar, ang_azimuth):
     """Create a single-spin pure state pointing along the given angles."""
-    return qutip.spin_coherent(j=1 / 2, theta=ang_polar, phi=ang_azimuth, type='ket')
+    return qutip.spin_coherent(j=1 / 2, theta=ang_polar, phi=ang_azimuth, type="ket")
 
 
 def manyspin_product_state(n_spins, ang_polar, ang_azimuth):
@@ -21,55 +21,24 @@ def local_marginal_density_matrix(state, locations):
     return state.ptrace(list(locations))
 
 
-class SESolveWrapper:
-    """A QuTiP state-evolution wrapper mirroring the TenPy workflow API."""
-
-    def __init__(self, hamiltonian_model, initial_state, tlist, metadata=None):
-        self.hamiltonian_model = hamiltonian_model
-        self.initial_state = initial_state
-        self.tlist = tlist
-        self.metadata = metadata or {}
-
-        self.state_list = []
-        self.rows = []
-
-    def evolve(self):
-        n_dof = len(self.initial_state.dims[0])
-        self.hamiltonian_terms = self.hamiltonian_model.construct_hamiltonian_qutip(n_dof)
-        if not self.hamiltonian_terms:
-            raise ValueError("Hamiltonian model produced no terms")
-
-        self.hamiltonian = sum(
-            self.hamiltonian_terms[1:],
-            self.hamiltonian_terms[0],
+def solve_state_history(hamiltonian, initial_state, tlist, metadata=None):
+    """Evolve a QuTiP state and return the workflow index plus state history."""
+    result = qutip.sesolve(hamiltonian, initial_state, tlist)
+    states = list(result.states)
+    if len(states) != len(tlist):
+        raise ValueError(
+            "QuTiP returned %d states for %d requested times" % (len(states), len(tlist))
         )
-        self.result = qutip.sesolve(self.hamiltonian, self.initial_state, self.tlist)
 
-        states = list(self.result.states)
-        if len(states) != len(self.tlist):
-            raise ValueError(
-                "QuTiP returned %d states for %d requested times"
-                % (len(states), len(self.tlist))
-            )
+    metadata = metadata or {}
+    rows = []
+    for ix_time, time_value in enumerate(tlist):
+        rows.append({
+            "ix_time": ix_time,
+            "time": time_value,
+            "bonddim": metadata.get("bonddim"),
+            "uuid_str": "%s" % uuid.uuid4(),
+            "walltime": time.time(),
+        })
 
-        self.state_list = [state.copy() for state in states]
-        self.rows = []
-        for ix_time, time_value in enumerate(self.tlist):
-            self.rows.append({
-                "ix_time": ix_time,
-                "time": time_value,
-                "bonddim": self.metadata.get("bonddim"),
-                "uuid_str": "%s" % uuid.uuid4(),
-                "walltime": time.time(),
-            })
-
-        self.df = pandas.DataFrame(self.rows)
-
-    def get_mps_history_df(self):
-        if not hasattr(self, "df"):
-            self.df = pandas.DataFrame(self.rows)
-
-        return self.df, self.state_list
-
-    def get_state_history_df(self):
-        return self.get_mps_history_df()
+    return pandas.DataFrame(rows), [state.copy() for state in states]
