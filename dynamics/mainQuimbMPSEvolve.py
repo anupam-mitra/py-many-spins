@@ -23,8 +23,8 @@ logging.info(sys.path)
 import config
 
 from manybody_util.spinmodel import tilted_field_ising_1d
-from wrap_quimb.spinmodel import to_quimb_spinham1d
-from wrap_quimb.quimbtebd import TEBDWrapper, spinhalf_state
+from manybody_backends.quimb.spinmodel import to_quimb_spinham1d
+from manybody_backends.quimb.quimbtebd import TEBDWrapper, spinhalf_state
 
 
 if __name__ == '__main__':

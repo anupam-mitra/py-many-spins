@@ -20,8 +20,11 @@ logging.info(sys.path)
 import config
 
 from manybody_util.spinmodel import tilted_field_ising_1d
-from wrap_qutip.spinmodel import to_qutip_hamiltonian
-from wrap_qutip.timeevolution import manyspin_product_state, solve_state_history
+from manybody_backends.qutip.spinmodel import to_qutip_hamiltonian
+from manybody_backends.qutip.timeevolution import (
+    manyspin_product_state,
+    solve_state_history,
+)
 
 
 if __name__ == '__main__':

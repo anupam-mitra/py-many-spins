@@ -20,8 +20,8 @@ logging.info(sys.path)
 import config
 
 from manybody_util.spinmodel import tilted_field_ising_1d
-from wrap_tenpy.spinmodel import to_tenpy_model
-from wrap_tenpy.timeevolution import manyspin_product_mps, solve_mps_history
+from manybody_backends.tenpy.spinmodel import to_tenpy_model
+from manybody_backends.tenpy.timeevolution import manyspin_product_mps, solve_mps_history
 
 
 if __name__ == '__main__':

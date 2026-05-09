@@ -18,7 +18,10 @@ logging.info(sys.path)
 
 import config
 
-from wrap_quimb.quimbtebd import max_bond_dimension, local_marginal_density_matrix
+from manybody_backends.quimb.quimbtebd import (
+    local_marginal_density_matrix,
+    max_bond_dimension,
+)
 
 
 def tuple_to_bitstring(t, length_bitstring):

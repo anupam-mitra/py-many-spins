@@ -66,7 +66,7 @@ def test_tilted_field_ising_1d_expands_terms():
 def test_qutip_adapter_constructs_hamiltonian_terms():
     qutip = pytest.importorskip("qutip")
 
-    from wrap_qutip.spinmodel import to_qutip_hamiltonian
+    from manybody_backends.qutip.spinmodel import to_qutip_hamiltonian
 
     model = tilted_field_ising_1d(3, j_xx=0.1, b_z=1.0, b_x=0.15)
     hamiltonian = to_qutip_hamiltonian(model)
@@ -92,7 +92,7 @@ def test_qutip_adapter_constructs_hamiltonian_terms():
 def test_qutip_adapter_embeds_noncontiguous_two_site_terms():
     qutip = pytest.importorskip("qutip")
 
-    from wrap_qutip.spinmodel import to_qutip_hamiltonian
+    from manybody_backends.qutip.spinmodel import to_qutip_hamiltonian
 
     model = SpinHalfPauliModel(
         n_sites=3,
@@ -110,8 +110,8 @@ def test_qutip_adapter_embeds_noncontiguous_two_site_terms():
 def test_qutip_sesolve_state_history_and_marginal_helpers():
     pytest.importorskip("qutip")
 
-    from wrap_qutip.spinmodel import to_qutip_hamiltonian
-    from wrap_qutip.timeevolution import (
+    from manybody_backends.qutip.spinmodel import to_qutip_hamiltonian
+    from manybody_backends.qutip.timeevolution import (
         local_marginal_density_matrix,
         manyspin_product_state,
         solve_state_history,
@@ -141,7 +141,7 @@ def test_qutip_sesolve_state_history_and_marginal_helpers():
 def test_quspin_adapter_constructs_static_terms():
     pytest.importorskip("quspin")
 
-    from wrap_quspin.spinmodel import (
+    from manybody_backends.quspin.spinmodel import (
         to_quspin_basis,
         to_quspin_hamiltonian,
         to_quspin_static_terms,
@@ -163,7 +163,7 @@ def test_quspin_adapter_constructs_static_terms():
 def test_quspin_adapter_embeds_noncontiguous_two_site_terms():
     pytest.importorskip("quspin")
 
-    from wrap_quspin.spinmodel import to_quspin_static_terms
+    from manybody_backends.quspin.spinmodel import to_quspin_static_terms
 
     model = SpinHalfPauliModel(
         n_sites=3,
@@ -178,8 +178,11 @@ def test_quspin_adapter_embeds_noncontiguous_two_site_terms():
 def test_quspin_exact_evolution_and_marginal_helpers():
     pytest.importorskip("quspin")
 
-    from wrap_quspin.spinmodel import to_quspin_basis, to_quspin_hamiltonian
-    from wrap_quspin.timeevolution import (
+    from manybody_backends.quspin.spinmodel import (
+        to_quspin_basis,
+        to_quspin_hamiltonian,
+    )
+    from manybody_backends.quspin.timeevolution import (
         local_marginal_density_matrix,
         manyspin_product_state,
         solve_state_history,
@@ -228,7 +231,7 @@ def test_quimb_adapter_builds_spinham1d():
     pytest.importorskip("quimb")
     pytest.importorskip("quimb.tensor")
 
-    from wrap_quimb.spinmodel import to_quimb_spinham1d
+    from manybody_backends.quimb.spinmodel import to_quimb_spinham1d
 
     model = tilted_field_ising_1d(3, j_xx=0.1, b_z=1.0, b_x=0.15)
     builder = to_quimb_spinham1d(model)
@@ -240,8 +243,8 @@ def test_quimb_tebd_wrapper_uses_modern_api():
     pytest.importorskip("quimb")
     qtn = pytest.importorskip("quimb.tensor")
 
-    from wrap_quimb.quimbtebd import TEBDWrapper, spinhalf_state
-    from wrap_quimb.spinmodel import to_quimb_spinham1d
+    from manybody_backends.quimb.quimbtebd import TEBDWrapper, spinhalf_state
+    from manybody_backends.quimb.spinmodel import to_quimb_spinham1d
 
     model = tilted_field_ising_1d(3, j_xx=0.1, b_z=1.0, b_x=0.15)
     initial_mps = qtn.MPS_product_state(
@@ -268,7 +271,7 @@ def test_quimb_tebd_wrapper_uses_modern_api():
 def test_quimb_mps_helpers():
     qtn = pytest.importorskip("quimb.tensor")
 
-    from wrap_quimb.quimbtebd import (
+    from manybody_backends.quimb.quimbtebd import (
         local_marginal_density_matrix,
         max_bond_dimension,
         spinhalf_state,
@@ -289,7 +292,7 @@ def test_tenpy_adapter_builds_direct_pauli_chain():
     pytest.importorskip("tenpy")
     from tenpy.networks.mps import MPS
 
-    from wrap_tenpy.spinmodel import to_tenpy_model
+    from manybody_backends.tenpy.spinmodel import to_tenpy_model
 
     model = tilted_field_ising_1d(2, j_xx=0.0, b_z=1.0, b_x=0.0)
     tenpy_model = to_tenpy_model(model, conserve=None)
@@ -308,8 +311,8 @@ def test_tenpy_adapter_builds_direct_pauli_chain():
 def test_tenpy_tebd_evolution_and_marginal_helpers():
     pytest.importorskip("tenpy")
 
-    from wrap_tenpy.spinmodel import to_tenpy_model
-    from wrap_tenpy.timeevolution import (
+    from manybody_backends.tenpy.spinmodel import to_tenpy_model
+    from manybody_backends.tenpy.timeevolution import (
         local_marginal_density_matrix,
         manyspin_product_mps,
         max_bond_dimension,

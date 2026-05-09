@@ -19,7 +19,10 @@ logging.info(sys.path)
 
 import config
 
-from wrap_quspin.timeevolution import local_marginal_density_matrix, spinhalf_basis
+from manybody_backends.quspin.timeevolution import (
+    local_marginal_density_matrix,
+    spinhalf_basis,
+)
 
 
 def tuple_to_bitstring(t, length_bitstring):

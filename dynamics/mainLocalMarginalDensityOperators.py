@@ -22,7 +22,7 @@ logging.info(sys.path)
 
 import config
 
-from wrap_tenpy.timeevolution import (
+from manybody_backends.tenpy.timeevolution import (
     local_marginal_density_matrix,
     max_bond_dimension,
 )

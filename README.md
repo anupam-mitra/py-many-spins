@@ -7,19 +7,19 @@ using a few python libraries `quimb`, `tenpy`, `qutip`, and `quspin`.
 - `time_evolution`: contains templates for book keeping of time evolution
   and the unified JSON-driven run interface.
 
-- `wrap_quimb`: contains wrappers around `Quimb` classes and functions.
+- `manybody_backends.quimb`: contains the Quimb backend implementation.
   - `time_evolution`: provides time evolution using `Quimb`.
   - `distance_measures`:
 
-- `wrap_qutip`: contains wrappers around `QuTiP` classes and functions.
+- `manybody_backends.qutip`: contains the QuTiP backend implementation.
   - `spinmodel`: converts shared spin models to exact QuTiP Hamiltonians.
   - `timeevolution`: provides exact state evolution using `qutip.sesolve`.
 
-- `wrap_quspin`: contains wrappers around `QuSpin` classes and functions.
+- `manybody_backends.quspin`: contains the QuSpin backend implementation.
   - `spinmodel`: converts shared spin models to exact QuSpin Hamiltonians.
   - `timeevolution`: provides exact state evolution using `hamiltonian.evolve`.
 
-- `wrap_tenpy`: contains wrappers around `TenPy` classes and functions.
+- `manybody_backends.tenpy`: contains the TenPy backend implementation.
   - `spinmodel`: converts shared spin models to direct TenPy chain models.
   - `timeevolution`: provides MPS evolution using `TEBDEngine`, `TwoSiteTDVPEngine`, and `ExpMPOEvolution`.
 

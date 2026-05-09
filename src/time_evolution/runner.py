@@ -74,8 +74,11 @@ def _records_from_dataframe(dataframe):
 
 
 def _run_tenpy(spec, spin_model, tlist):
-    from wrap_tenpy.spinmodel import to_tenpy_model
-    from wrap_tenpy.timeevolution import manyspin_product_mps, solve_mps_history
+    from manybody_backends.tenpy.spinmodel import to_tenpy_model
+    from manybody_backends.tenpy.timeevolution import (
+        manyspin_product_mps,
+        solve_mps_history,
+    )
 
     tenpy_model = to_tenpy_model(spin_model, bc_mps="finite", conserve=None)
     initial_mps = manyspin_product_mps(
@@ -112,8 +115,8 @@ def _quimb_evolution_params(spec, tlist):
 def _run_quimb(spec, spin_model, tlist):
     import quimb.tensor as qtn
 
-    from wrap_quimb.quimbtebd import TEBDWrapper, spinhalf_state
-    from wrap_quimb.spinmodel import to_quimb_spinham1d
+    from manybody_backends.quimb.quimbtebd import TEBDWrapper, spinhalf_state
+    from manybody_backends.quimb.spinmodel import to_quimb_spinham1d
 
     initial_mps = qtn.MPS_product_state(
         [spinhalf_state(spec.initial_state.theta, spec.initial_state.phi)]
@@ -137,8 +140,11 @@ def _run_quimb(spec, spin_model, tlist):
 
 
 def _run_qutip(spec, spin_model, tlist):
-    from wrap_qutip.spinmodel import to_qutip_hamiltonian
-    from wrap_qutip.timeevolution import manyspin_product_state, solve_state_history
+    from manybody_backends.qutip.spinmodel import to_qutip_hamiltonian
+    from manybody_backends.qutip.timeevolution import (
+        manyspin_product_state,
+        solve_state_history,
+    )
 
     initial_state = manyspin_product_state(
         spin_model.n_sites,
@@ -159,8 +165,14 @@ def _run_qutip(spec, spin_model, tlist):
 
 
 def _run_quspin(spec, spin_model, tlist):
-    from wrap_quspin.spinmodel import to_quspin_basis, to_quspin_hamiltonian
-    from wrap_quspin.timeevolution import manyspin_product_state, solve_state_history
+    from manybody_backends.quspin.spinmodel import (
+        to_quspin_basis,
+        to_quspin_hamiltonian,
+    )
+    from manybody_backends.quspin.timeevolution import (
+        manyspin_product_state,
+        solve_state_history,
+    )
 
     basis = to_quspin_basis(spin_model)
     initial_state = manyspin_product_state(

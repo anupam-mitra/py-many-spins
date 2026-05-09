@@ -6,7 +6,7 @@ tenpy = pytest.importorskip("tenpy")
 import tenpy.networks.site
 
 
-from wrap_tenpy.distancemeasures import hilbertschmidt_distance
+from manybody_backends.tenpy.distancemeasures import hilbertschmidt_distance
 
 ################################################################################
 def test_squared_hilbertschmidt_distance_onespin_rho():

@@ -18,7 +18,7 @@ logging.info(sys.path)
 
 import config
 
-from wrap_qutip.timeevolution import local_marginal_density_matrix
+from manybody_backends.qutip.timeevolution import local_marginal_density_matrix
 
 
 def tuple_to_bitstring(t, length_bitstring):

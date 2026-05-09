@@ -66,12 +66,9 @@ where = ["src"]
 include = [
   "conversions*",
   "indexing*",
+  "manybody_backends*",
   "manybody_util*",
   "time_evolution*",
-  "wrap_qutip*",
-  "wrap_quspin*",
-  "wrap_quimb*",
-  "wrap_tenpy*",
 ]
 namespaces = true
 
