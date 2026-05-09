@@ -29,6 +29,7 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
+  "h5py",
   "numpy",
   "pandas",
 ]
@@ -36,7 +37,6 @@ dependencies = [
 [project.optional-dependencies]
 tenpy = [
   "physics-tenpy",
-  "h5py",
 ]
 qutip = [
   "qutip",
@@ -52,7 +52,6 @@ dev = [
 ]
 all = [
   "physics-tenpy",
-  "h5py",
   "qutip",
   "quspin",
   "quimb",
