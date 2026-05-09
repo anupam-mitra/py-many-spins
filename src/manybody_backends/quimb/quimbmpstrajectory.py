@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Any
+import uuid
 
 import quimb as qu
 import quimb.tensor as qtn
@@ -17,134 +18,283 @@ class MPSTrajectoryResult:
     whichjumps: Any
     random_numbers: Any
     parameters: dict[str, Any] = field(default_factory=dict)
+    psi_unnormalized_t: Any = field(default_factory=list)
 
 
-def eval_single_trajectory(\
-    psi_initial, h_nni, jump_ops, ts, \
-    split_opts, epsilon_trotter, \
-    random_numbers, debug=False):
-    """
-    Evaluates a single quantum trajectory
+class _RandomDraws:
+    def __init__(self, random_numbers=None, rng=None, seed=None):
+        if random_numbers is not None and rng is not None:
+            raise ValueError("provide either random_numbers or rng, not both")
+        self._values = None
+        if random_numbers is not None:
+            self._values = list(np.asarray(random_numbers, dtype=float).ravel())
+        self._index = 0
+        self._rng = rng if rng is not None else np.random.default_rng(seed)
+        self.jump_thresholds = []
+        self.jump_choices = []
 
-    Parameters
-    ----------
-        psi_initial: Initial state
-
-        h_nni: Effective non Hermitian Hamiltonian, represented
-            as an `NNI` object
-
-        jump_ops: Sequence of jump operators
-
-        ts: Times at which to save the state
-
-        random_numbers: Random numbers to use for the simulation
-
-        cutoff: Error budget for TEBD
-
-        epsilon_trotter: Error budget for Trotterization
-
-
-    Returns
-    -------
-        psi_ts: Sequence of `MatrixProductState` objects 
-            as a function of time
-
-        psi_normalized_ts: Sequence of normalized `MatrixProductState` 
-            objects as a function of time
-
-        t_jumps: Times at which jumps occurred
-
-    """
-    n_jump_ops = len(jump_ops)
-    n_steps = len(ts)
-    n_spins = psi_initial.nsites
-
-    if debug:
-        
-        _debug_str = 'n_spins = %d, len(jump_ops) = %d' % (n_spins, n_jump_ops)
-
-        print('DEBUG:\n\t', _debug_str)
-    
-    
-    tebd = qtn.TEBD(psi_initial, h_nni, progbar=False, \
-        split_opts=split_opts)
-
-    psi_ts = [psi_initial]
-
-    t_jumps = []
-    
-    count_random_used_norm = 0
-    count_random_used_jump_choice = 0  
-    
-    dt_mcwf = ts[1] - ts[0]
-    h_dk_ops = [qu.dag(jump_op) @ jump_op for jump_op in jump_ops]
-    expm_h_dk_ops = [qu.expm(-1/2 * dt_mcwf * h_dk) for h_dk in h_dk_ops]
-    
-    for t_index in range(1, n_steps):
-
-        t = ts[t_index]
-
-        tebd.update_to(t, tol=epsilon_trotter)
-        psit = list(tebd.at_times([t], tol=epsilon_trotter))[0]
-        
-        for j in range(n_jump_ops):
-            for l in range(n_spins):
-                psit = psit.gate(expm_h_dk_ops[j], l, contract=True)
-                
-        psi_ts += [psit]
-
-        norm = psit.H @ psit
-        
-        
-        # Check the jump condition
-        if norm < random_numbers[count_random_used_norm]:
-            
-
-            
-            t_jumps += [t]
-            count_random_used_norm += 1
-
-            # Calculate the probability distribution of jumps
-            prob_jumps = np.asarray([\
-                        np.abs(psit.H @ psit.gate(qu.dag(jump_op) @ jump_op, l))
-                          for jump_op in jump_ops for l in range(n_spins)])
-            
-            prob_jumps /= np.sum(prob_jumps)
-            
-            if debug:
-                _debug_str = 'norm = %g' % norm
-                _debug_str += 'len(prob_jumps) = %d,'  % \
-                (len(prob_jumps))
-
-                print('DEBUG: Performing a jump \n\t', _debug_str)
-                
-            # Calculate the cumulative probability distribution of jumps
-            prob_cum_jumps = np.cumsum(prob_jumps)
-            
-            index_jump = np.min(np.where(\
-                prob_cum_jumps > random_numbers[n_steps + count_random_used_jump_choice])[0])
-            
-            index_jump_op = index_jump % n_jump_ops
-            loc_jump = index_jump // n_jump_ops
-            
-            if debug:
-                _debug_str = 'index_jump = %d, index_jump_op = %d, loc_jump = %d' % \
-                    (index_jump, index_jump_op, loc_jump)
-                print('\t', _debug_str)
-
-            psit_jumped = psit.gate(jump_ops[index_jump_op], loc_jump, contract=True)
-
-            count_random_used_jump_choice += 1
-            psit_jumped /= np.sqrt(psit_jumped.H @ psit_jumped)
-
-            # Create a new TEBD object
-            tebd = qtn.TEBD(psit_jumped, h_nni, t0=t_jumps[-1], progbar=False, \
-                split_opts=split_opts)
-            
+    def _draw(self):
+        if self._values is None:
+            value = float(self._rng.random())
         else:
-            tebd = qtn.TEBD(psit, h_nni, t0=t, progbar=False, \
-                split_opts=split_opts)
-            
-    psi_normalized_ts = [psit / np.sqrt(psit.H @ psit) for psit in psi_ts]
-    
-    return psi_ts, psi_normalized_ts, t_jumps
+            if self._index >= len(self._values):
+                raise ValueError("not enough random numbers supplied for trajectory")
+            value = float(self._values[self._index])
+            self._index += 1
+        if value < 0.0 or value > 1.0:
+            raise ValueError("random draws must lie in [0, 1]")
+        return value
+
+    def threshold(self):
+        value = self._draw()
+        self.jump_thresholds.append(value)
+        return value
+
+    def choice(self):
+        value = self._draw()
+        self.jump_choices.append(value)
+        return value
+
+    def to_dict(self):
+        return {
+            "jump_thresholds": list(self.jump_thresholds),
+            "jump_choices": list(self.jump_choices),
+        }
+
+
+def _n_sites(mps):
+    return mps.nsites if hasattr(mps, "nsites") else mps.L
+
+
+def _copy_mps(mps):
+    return mps.copy() if hasattr(mps, "copy") else mps
+
+
+def _mps_norm(mps):
+    value = np.real_if_close(mps.H @ mps)
+    return max(float(np.real(value)), 0.0)
+
+
+def _normalize_mps(mps):
+    norm = _mps_norm(mps)
+    if norm <= 0.0:
+        raise ValueError("cannot normalize an MPS with zero norm")
+    return mps / np.sqrt(norm)
+
+
+def _validate_tlist(tlist):
+    tlist = np.asarray(tlist, dtype=float)
+    if len(tlist) == 0:
+        raise ValueError("tlist must contain at least one time")
+    if len(tlist) > 1 and np.any(np.diff(tlist) <= 0.0):
+        raise ValueError("tlist must be strictly increasing")
+    return tlist
+
+
+def _validate_collapse_ops(collapse_ops):
+    operators = []
+    for operator in collapse_ops or ():
+        operator = np.asarray(operator, dtype=complex)
+        if operator.shape != (2, 2):
+            raise ValueError("collapse operators must be single-site 2x2 arrays")
+        operators.append(operator)
+    return tuple(operators)
+
+
+def _tebd_init_options(tebd_params):
+    params = tebd_params or {}
+    options = {}
+    for key in ("dt", "tol", "progbar"):
+        if params.get(key) is not None:
+            options[key] = params[key]
+    options.setdefault("progbar", False)
+    return options
+
+
+def _tebd_evolution_options(tebd_params):
+    params = tebd_params or {}
+    options = {}
+    for key in ("dt", "tol", "order", "progbar"):
+        if params.get(key) is not None:
+            options[key] = params[key]
+    options.setdefault("progbar", False)
+    return options
+
+
+def _gate_options(split_opts):
+    params = split_opts or {}
+    options = {}
+    for key in ("max_bond", "cutoff"):
+        if params.get(key) is not None:
+            options[key] = params[key]
+    return options
+
+
+def _coherent_step(mps, hamiltonian, t0, t1, tebd_params, split_opts):
+    if hamiltonian is None or t1 == t0:
+        return _copy_mps(mps)
+    tebd = qtn.TEBD(
+        mps,
+        hamiltonian,
+        t0=t0,
+        split_opts=split_opts,
+        **_tebd_init_options(tebd_params),
+    )
+    return next(iter(tebd.at_times([t1], **_tebd_evolution_options(tebd_params))))
+
+
+def _apply_no_jump_damping(mps, collapse_ops, dt, gate_options):
+    state = mps
+    for collapse_op in collapse_ops:
+        damping_gate = qu.expm(-0.5 * dt * (qu.dag(collapse_op) @ collapse_op))
+        for site in range(_n_sites(state)):
+            state = state.gate(damping_gate, site, contract=True, **gate_options)
+    return state
+
+
+def _jump_probabilities(mps, collapse_ops, gate_options):
+    probabilities = []
+    jump_states = []
+    n_sites = _n_sites(mps)
+    for op_index, collapse_op in enumerate(collapse_ops):
+        for site in range(n_sites):
+            jump_state = mps.gate(collapse_op, site, contract=True, **gate_options)
+            jump_states.append((op_index, site, jump_state))
+            probabilities.append(_mps_norm(jump_state))
+
+    probabilities = np.asarray(probabilities, dtype=float)
+    total = float(np.sum(probabilities))
+    if total <= 0.0:
+        raise ValueError("jump selected but all jump probabilities are zero")
+    return probabilities / total, jump_states
+
+
+def solve_mps_trajectory(
+    initial_mps,
+    hamiltonian,
+    collapse_ops,
+    tlist,
+    *,
+    n_substeps=1,
+    tebd_params=None,
+    split_opts=None,
+    random_numbers=None,
+    rng=None,
+    seed=None,
+    str_uuid=None,
+    metadata=None,
+    debug=False,
+):
+    """Evolve one MCWF trajectory using Quimb MPS states.
+
+    The implementation uses TEBD for coherent evolution and local no-jump
+    damping gates ``exp(-0.5 * dt * C^dagger C)`` for collapse operators.
+    Saved states are normalized; ``psi_unnormalized_t`` keeps diagnostic copies
+    of the states before save-time normalization.
+    """
+    tlist = _validate_tlist(tlist)
+    collapse_ops = _validate_collapse_ops(collapse_ops)
+    n_substeps = int(n_substeps)
+    if n_substeps < 1:
+        raise ValueError("n_substeps must be at least 1")
+
+    gate_options = _gate_options(split_opts)
+    random_draws = _RandomDraws(random_numbers=random_numbers, rng=rng, seed=seed)
+
+    state = _normalize_mps(_copy_mps(initial_mps))
+    psi_t = [_copy_mps(state)]
+    psi_unnormalized_t = [_copy_mps(state)]
+    t_jumps = []
+    jump_records = []
+    jump_threshold = (
+        random_draws.threshold() if collapse_ops and len(tlist) > 1 else None
+    )
+
+    total_substeps = max(len(tlist) - 1, 0) * n_substeps
+    completed_substeps = 0
+
+    for ix_time in range(1, len(tlist)):
+        interval_start = tlist[ix_time - 1]
+        dt = (tlist[ix_time] - interval_start) / n_substeps
+
+        for ix_substep in range(n_substeps):
+            t0 = interval_start + ix_substep * dt
+            t1 = t0 + dt
+            state = _coherent_step(state, hamiltonian, t0, t1, tebd_params, split_opts)
+
+            if collapse_ops:
+                state = _apply_no_jump_damping(state, collapse_ops, dt, gate_options)
+                norm = _mps_norm(state)
+                if debug:
+                    print("MCWF step t=%g norm=%g threshold=%g" % (t1, norm, jump_threshold))
+                if norm <= jump_threshold:
+                    probabilities, jump_states = _jump_probabilities(
+                        state,
+                        collapse_ops,
+                        gate_options,
+                    )
+                    choice = random_draws.choice()
+                    cumulative = np.cumsum(probabilities)
+                    event_index = int(np.searchsorted(cumulative, choice, side="right"))
+                    if event_index >= len(jump_states):
+                        event_index = len(jump_states) - 1
+                    op_index, site, jump_state = jump_states[event_index]
+                    state = _normalize_mps(jump_state)
+                    t_jumps.append(float(t1))
+                    jump_records.append({
+                        "time": float(t1),
+                        "ix_time": ix_time,
+                        "ix_substep": ix_substep,
+                        "op_index": op_index,
+                        "site": site,
+                        "probability": float(probabilities[event_index]),
+                    })
+
+                    if completed_substeps + 1 < total_substeps:
+                        jump_threshold = random_draws.threshold()
+
+            completed_substeps += 1
+
+        psi_unnormalized_t.append(_copy_mps(state))
+        psi_t.append(_copy_mps(_normalize_mps(state)))
+
+    parameters = {
+        "n_substeps": n_substeps,
+        "tebd_params": dict(tebd_params or {}),
+        "split_opts": dict(split_opts or {}),
+        **dict(metadata or {}),
+    }
+    return MPSTrajectoryResult(
+        str_uuid=str_uuid or "%s" % uuid.uuid4(),
+        tlist=tlist.copy(),
+        psi_t=psi_t,
+        tjumps=t_jumps,
+        whichjumps=jump_records,
+        random_numbers=random_draws.to_dict(),
+        parameters=parameters,
+        psi_unnormalized_t=psi_unnormalized_t,
+    )
+
+
+def eval_single_trajectory(
+    psi_initial,
+    h_nni,
+    jump_ops,
+    ts,
+    split_opts=None,
+    epsilon_trotter=1e-6,
+    random_numbers=None,
+    debug=False,
+):
+    """Compatibility wrapper returning raw states, normalized states, and jumps."""
+    result = solve_mps_trajectory(
+        psi_initial,
+        h_nni,
+        jump_ops,
+        ts,
+        split_opts=split_opts,
+        tebd_params={"tol": epsilon_trotter},
+        random_numbers=random_numbers,
+        debug=debug,
+    )
+    return result.psi_unnormalized_t, result.psi_t, result.tjumps

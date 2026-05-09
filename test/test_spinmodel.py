@@ -290,6 +290,81 @@ def test_quimb_mps_helpers():
     assert max_bond_dimension(mps) == 1
 
 
+def test_quimb_mcwf_no_jump_trajectory_preserves_saved_norms():
+    qtn = pytest.importorskip("quimb.tensor")
+
+    from manybody_backends.quimb.quimbmpstrajectory import (
+        MPSTrajectoryResult,
+        solve_mps_trajectory,
+    )
+
+    initial_mps = qtn.MPS_product_state(
+        [np.asarray([1.0, 0.0], dtype=complex)] * 2,
+        cyclic=False,
+    )
+    result = solve_mps_trajectory(
+        initial_mps,
+        hamiltonian=qtn.LocalHam1D(2, H2=np.zeros((4, 4), dtype=complex)),
+        collapse_ops=[],
+        tlist=np.array([0.0, 0.1, 0.2]),
+        tebd_params={"dt": 0.05},
+    )
+
+    assert isinstance(result, MPSTrajectoryResult)
+    assert len(result.psi_t) == 3
+    assert len(result.psi_unnormalized_t) == 3
+    assert result.tjumps == []
+    assert result.whichjumps == []
+    assert result.random_numbers == {"jump_thresholds": [], "jump_choices": []}
+    assert all(np.isclose(state.H @ state, 1.0) for state in result.psi_t)
+
+
+def test_quimb_mcwf_forced_identity_jump_records_event():
+    qtn = pytest.importorskip("quimb.tensor")
+
+    from manybody_backends.quimb.quimbmpstrajectory import eval_single_trajectory
+    from manybody_backends.quimb.quimbmpstrajectory import solve_mps_trajectory
+
+    initial_mps = qtn.MPS_product_state(
+        [np.asarray([1.0, 0.0], dtype=complex)] * 2,
+        cyclic=False,
+    )
+    result = solve_mps_trajectory(
+        initial_mps,
+        hamiltonian=None,
+        collapse_ops=[np.eye(2, dtype=complex)],
+        tlist=np.array([0.0, 1.0]),
+        random_numbers=[0.99, 0.1],
+    )
+
+    assert len(result.psi_t) == 2
+    assert result.tjumps == [1.0]
+    assert result.whichjumps == [{
+        "time": 1.0,
+        "ix_time": 1,
+        "ix_substep": 0,
+        "op_index": 0,
+        "site": 0,
+        "probability": 0.5,
+    }]
+    assert result.random_numbers == {
+        "jump_thresholds": [0.99],
+        "jump_choices": [0.1],
+    }
+    assert all(np.isclose(state.H @ state, 1.0) for state in result.psi_t)
+
+    raw_states, normalized_states, jump_times = eval_single_trajectory(
+        initial_mps,
+        None,
+        [np.eye(2, dtype=complex)],
+        np.array([0.0, 1.0]),
+        random_numbers=[0.99, 0.1],
+    )
+    assert len(raw_states) == 2
+    assert len(normalized_states) == 2
+    assert jump_times == [1.0]
+
+
 def test_tenpy_adapter_builds_direct_pauli_chain():
     pytest.importorskip("tenpy")
     from tenpy.networks.mps import MPS
