@@ -65,7 +65,6 @@ package-dir = {"" = "src"}
 where = ["src"]
 include = [
   "conversions*",
-  "indexing*",
   "manybody_backends*",
   "manybody_util*",
   "time_evolution*",

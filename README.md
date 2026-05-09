@@ -8,8 +8,9 @@ using a few python libraries `quimb`, `tenpy`, `qutip`, and `quspin`.
   and the unified JSON-driven run interface.
 
 - `manybody_backends.quimb`: contains the Quimb backend implementation.
-  - `time_evolution`: provides time evolution using `Quimb`.
-  - `distance_measures`:
+  - `spinmodel`: converts shared spin models to Quimb Hamiltonian builders.
+  - `quimbtebd`: provides MPS evolution using Quimb TEBD.
+  - `quimbmpstrajectory`: retained for MCWF trajectory development.
 
 - `manybody_backends.qutip`: contains the QuTiP backend implementation.
   - `spinmodel`: converts shared spin models to exact QuTiP Hamiltonians.

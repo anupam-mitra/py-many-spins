@@ -1,13 +1,23 @@
-#
-#
-# 2020-09-15
-# 2021-09-13
+from dataclasses import dataclass, field
+from typing import Any
 
 import quimb as qu
 import quimb.tensor as qtn
 import numpy as np
 
-from numpy import sqrt, pi
+
+@dataclass
+class MPSTrajectoryResult:
+    """Container for one MPS quantum trajectory history."""
+
+    str_uuid: str
+    tlist: Any
+    psi_t: Any
+    tjumps: Any
+    whichjumps: Any
+    random_numbers: Any
+    parameters: dict[str, Any] = field(default_factory=dict)
+
 
 def eval_single_trajectory(\
     psi_initial, h_nni, jump_ops, ts, \
@@ -138,24 +148,3 @@ def eval_single_trajectory(\
     psi_normalized_ts = [psit / np.sqrt(psit.H @ psit) for psit in psi_ts]
     
     return psi_ts, psi_normalized_ts, t_jumps
-
-
-# '''
-# Reading and writing the results
-# '''
-# import os
-# import pickle
-# def read_results(string_uuid, datadir='../../Data'):
-#     input_file = open(os.path.join(datadir, string_uuid + '.pkl'), 'rb')
-#     result_read = pickle.load(input_file)
-    
-#     input_file.close()
-#     return result_read
-
-
-# # read the result 66d4bc3c-cd35-11ea-80ba-a860b63445d4
-# read_dict = read_results('66d4bc3c-cd35-11ea-80ba-a860b63445d4_mcwf')
-# read_dict.keys()
-
-# psi_ts = read_dict['psi_ts']
-# t_jumps_traj = read_dict['t_jumps_traj']
