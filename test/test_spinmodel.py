@@ -125,11 +125,12 @@ def test_qutip_sesolve_state_history_and_marginal_helpers():
         to_qutip_hamiltonian(model),
         initial_state,
         tlist,
-        metadata={"bonddim": None},
+        metadata={"bonddim": 4},
     )
 
     assert len(states) == len(tlist)
     assert np.allclose(df_states["time"], tlist)
+    assert "bonddim" not in df_states.columns
     assert states[0].dims == initial_state.dims
     assert np.isclose(states[-1].norm(), 1.0)
 
@@ -197,11 +198,12 @@ def test_quspin_exact_evolution_and_marginal_helpers():
         to_quspin_hamiltonian(model, basis=basis),
         initial_state,
         tlist,
-        metadata={"bonddim": None},
+        metadata={"bonddim": 4},
     )
 
     assert len(states) == len(tlist)
     assert np.allclose(df_states["time"], tlist)
+    assert "bonddim" not in df_states.columns
     assert states[0].shape == initial_state.shape
     assert np.isclose(np.linalg.norm(states[-1]), 1.0)
 

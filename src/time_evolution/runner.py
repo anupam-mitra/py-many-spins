@@ -5,6 +5,7 @@ import numpy as np
 from manybody_util.spinmodel import tilted_field_ising_1d
 from time_evolution.persistence import RunStore
 from time_evolution.results import EvolutionResult
+from time_evolution.specs import EXACT_BACKENDS
 
 
 def build_spin_model(model_spec):
@@ -60,13 +61,16 @@ def run_and_store(spec):
 
 
 def _base_metadata(spec, tlist):
-    return {
-        "backend": spec.method.backend.lower(),
+    backend = spec.method.backend.lower()
+    metadata = {
+        "backend": backend,
         "algorithm": spec.method.algorithm,
-        "bonddim": spec.method.trunc_params.get("chi_max"),
         "n_sites": spec.model.n_sites,
         "time_count": int(len(tlist)),
     }
+    if backend not in EXACT_BACKENDS:
+        metadata["bonddim"] = spec.method.trunc_params.get("chi_max")
+    return metadata
 
 
 def _records_from_dataframe(dataframe):

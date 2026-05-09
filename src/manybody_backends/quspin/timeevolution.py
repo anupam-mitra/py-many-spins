@@ -62,13 +62,11 @@ def solve_state_history(hamiltonian, initial_state, tlist, metadata=None):
             "QuSpin returned %d states for %d requested times" % (len(states), len(tlist))
         )
 
-    metadata = metadata or {}
     rows = []
     for ix_time, time_value in enumerate(tlist):
         rows.append({
             "ix_time": ix_time,
             "time": time_value,
-            "bonddim": metadata.get("bonddim"),
             "uuid_str": "%s" % uuid.uuid4(),
             "walltime": time.time(),
         })

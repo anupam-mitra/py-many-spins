@@ -129,8 +129,28 @@ def test_qutip_runner_smoke_and_pickle_persistence(tmp_path):
 
     spec = _spec(tmp_path, backend="qutip", algorithm="sesolve", run_id="qutip-run")
     store, index = run_and_store(spec)
+    manifest = load_json(store.run_dir / "manifest.json")
 
     assert store.run_id == "qutip-run"
     assert len(index["records"]) == 2
+    assert "bonddim" not in index["metadata"]
+    assert "bonddim" not in manifest["metadata"]
+    assert "bonddim" not in index["records"][0]
     assert index["records"][0]["storage"]["kind"] == "pickle"
     assert store.load_payload(index["records"][0]["storage"]).dims == [[2, 2], [1]]
+
+
+def test_quspin_runner_smoke_omits_bonddim_labels(tmp_path):
+    pytest.importorskip("quspin")
+
+    spec = _spec(tmp_path, backend="quspin", algorithm="evolve", run_id="quspin-run")
+    store, index = run_and_store(spec)
+    manifest = load_json(store.run_dir / "manifest.json")
+
+    assert store.run_id == "quspin-run"
+    assert len(index["records"]) == 2
+    assert "bonddim" not in index["metadata"]
+    assert "bonddim" not in manifest["metadata"]
+    assert "bonddim" not in index["records"][0]
+    assert index["records"][0]["storage"]["kind"] == "hdf5"
+    assert store.load_payload(index["records"][0]["storage"]).shape == (4,)
