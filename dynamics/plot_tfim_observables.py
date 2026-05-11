@@ -1,5 +1,7 @@
 import argparse
+import itertools
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -22,7 +24,37 @@ DEFAULT_ALGORITHMS = {
     "tenpy": "TEBD",
 }
 SIGMA_Z = np.asarray([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
-SIGMA_ZZ = np.kron(SIGMA_Z, SIGMA_Z)
+OBSERVABLE_SPECS = (
+    (1, "z1", "sum_i <sigma^z_i> / N"),
+    (2, "z2_offdiag", "sum_{i != j} <sigma^z_i sigma^z_j> / N^2"),
+    (
+        3,
+        "z3_offdiag",
+        "sum_{distinct i,j,k} <sigma^z_i sigma^z_j sigma^z_k> / N^3",
+    ),
+    (
+        4,
+        "z4_offdiag",
+        "sum_{distinct i,j,k,l} <sigma^z_i sigma^z_j sigma^z_k sigma^z_l> / N^4",
+    ),
+)
+DESCRIPTION_BY_DATASET = {
+    dataset: description for _, dataset, description in OBSERVABLE_SPECS
+}
+ORDER_BY_DATASET = {dataset: order for order, dataset, _ in OBSERVABLE_SPECS}
+
+
+def _kron_power(operator, order):
+    result = np.asarray([[1.0]], dtype=complex)
+    for _ in range(order):
+        result = np.kron(result, operator)
+    return result
+
+
+Z_OPERATORS = {
+    order: _kron_power(SIGMA_Z, order)
+    for order, _, _ in OBSERVABLE_SPECS
+}
 
 
 def _real_scalar(value, label):
@@ -108,36 +140,37 @@ def _load_states(base_dir, run_record):
     return times, states
 
 
-def _marginal_observables(states, n_sites, local_marginal):
-    sum_z = []
-    sum_zz_offdiag = []
+def _normalized_marginal_observables(states, n_sites, local_marginal):
+    observables = {dataset: [] for _, dataset, _ in OBSERVABLE_SPECS}
     for state in states:
-        one_site_total = 0.0
-        for site in range(n_sites):
-            one_site_total += _density_expectation(
-                local_marginal(state, (site,)),
-                SIGMA_Z,
-                "site %d sigma_z" % site,
-            )
-
-        pair_total = 0.0
-        for left in range(n_sites):
-            for right in range(left + 1, n_sites):
-                pair_total += 2.0 * _density_expectation(
-                    local_marginal(state, (left, right)),
-                    SIGMA_ZZ,
-                    "sites %d,%d sigma_z sigma_z" % (left, right),
+        for order, dataset, _ in OBSERVABLE_SPECS:
+            total = 0.0
+            for sites in itertools.combinations(range(n_sites), order):
+                label = "sites %s order-%d sigma_z" % (
+                    ",".join(str(site) for site in sites),
+                    order,
                 )
+                total += math.factorial(order) * _density_expectation(
+                    local_marginal(state, sites),
+                    Z_OPERATORS[order],
+                    label,
+                )
+            observables[dataset].append(total / (n_sites ** order))
 
-        sum_z.append(one_site_total)
-        sum_zz_offdiag.append(pair_total)
-    return np.asarray(sum_z), np.asarray(sum_zz_offdiag)
+    return {
+        dataset: np.asarray(values)
+        for dataset, values in observables.items()
+    }
 
 
 def _qutip_observables(states, n_sites):
     from manybody_backends.qutip.timeevolution import local_marginal_density_matrix
 
-    return _marginal_observables(states, n_sites, local_marginal_density_matrix)
+    return _normalized_marginal_observables(
+        states,
+        n_sites,
+        local_marginal_density_matrix,
+    )
 
 
 def _quspin_observables(states, n_sites):
@@ -147,7 +180,7 @@ def _quspin_observables(states, n_sites):
     )
 
     basis = spinhalf_basis(n_sites)
-    return _marginal_observables(
+    return _normalized_marginal_observables(
         states,
         n_sites,
         lambda state, sites: local_marginal_density_matrix(state, sites, basis),
@@ -157,29 +190,34 @@ def _quspin_observables(states, n_sites):
 def _quimb_observables(states, n_sites):
     from manybody_backends.quimb.quimbtebd import local_marginal_density_matrix
 
-    return _marginal_observables(states, n_sites, local_marginal_density_matrix)
+    return _normalized_marginal_observables(
+        states,
+        n_sites,
+        local_marginal_density_matrix,
+    )
 
 
 def _tenpy_observables(states, n_sites):
-    sum_z = []
-    sum_zz_offdiag = []
+    observables = {dataset: [] for _, dataset, _ in OBSERVABLE_SPECS}
     for state in states:
-        sum_z.append(
-            _real_scalar(np.sum(state.expectation_value("Sigmaz")), "TenPy sum_z")
-        )
-
-        pair_total = 0.0
-        for left in range(n_sites):
-            for right in range(left + 1, n_sites):
-                pair_total += 2.0 * _real_scalar(
+        for order, dataset, _ in OBSERVABLE_SPECS:
+            total = 0.0
+            for sites in itertools.combinations(range(n_sites), order):
+                total += math.factorial(order) * _real_scalar(
                     state.expectation_value_term([
-                        ("Sigmaz", left),
-                        ("Sigmaz", right),
+                        ("Sigmaz", site) for site in sites
                     ]),
-                    "TenPy sites %d,%d sigma_z sigma_z" % (left, right),
+                    "TenPy sites %s order-%d sigma_z" % (
+                        ",".join(str(site) for site in sites),
+                        order,
+                    ),
                 )
-        sum_zz_offdiag.append(pair_total)
-    return np.asarray(sum_z), np.asarray(sum_zz_offdiag)
+            observables[dataset].append(total / (n_sites ** order))
+
+    return {
+        dataset: np.asarray(values)
+        for dataset, values in observables.items()
+    }
 
 
 def _observable_data(base_dir, selected_runs):
@@ -192,11 +230,9 @@ def _observable_data(base_dir, selected_runs):
     data = {}
     for backend, run_record in selected_runs.items():
         times, states = _load_states(base_dir, run_record)
-        sum_z, sum_zz_offdiag = calculators[backend](states, run_record["n_sites"])
         data[backend] = {
             "time": times,
-            "sum_z": sum_z,
-            "sum_zz_offdiag": sum_zz_offdiag,
+            **calculators[backend](states, run_record["n_sites"]),
         }
     return data
 
@@ -213,15 +249,19 @@ def _write_hdf5(output_path, data, selected_runs):
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with h5py.File(output_path, "w") as h5file:
         h5file.attrs["model"] = "tilted_field_ising_1d"
-        h5file.attrs["sum_z"] = "sum_j <sigma^z_j>"
-        h5file.attrs["sum_zz_offdiag"] = "sum_{j != k} <sigma^z_j sigma^z_k>"
-        h5file.attrs["pair_counting"] = "ordered off-diagonal pairs"
+        h5file.attrs["normalization"] = "N^order"
+        h5file.attrs["site_counting"] = "ordered distinct-site tuples"
+        for dataset, description in DESCRIPTION_BY_DATASET.items():
+            h5file.attrs[dataset] = description
 
         for backend, values in data.items():
             group = h5file.create_group(backend)
             group.create_dataset("time", data=values["time"])
-            group.create_dataset("sum_z", data=values["sum_z"])
-            group.create_dataset("sum_zz_offdiag", data=values["sum_zz_offdiag"])
+            for _, dataset, _ in OBSERVABLE_SPECS:
+                h5_dataset = group.create_dataset(dataset, data=values[dataset])
+                h5_dataset.attrs["description"] = DESCRIPTION_BY_DATASET[dataset]
+                h5_dataset.attrs["normalization"] = "N^%d" % ORDER_BY_DATASET[dataset]
+                h5_dataset.attrs["site_counting"] = "ordered distinct-site tuples"
 
             run_record = selected_runs[backend]
             metadata = run_record["metadata"]
@@ -239,23 +279,22 @@ def _write_hdf5(output_path, data, selected_runs):
 
 def _write_plot(output_path, data):
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(2, 1, figsize=(8.0, 6.0), sharex=True)
+    fig, axes = plt.subplots(4, 1, figsize=(8.0, 9.5), sharex=True)
 
     for backend in BACKENDS:
         if backend not in data:
             continue
-        axes[0].plot(data[backend]["time"], data[backend]["sum_z"], label=backend)
-        axes[1].plot(
-            data[backend]["time"],
-            data[backend]["sum_zz_offdiag"],
-            label=backend,
-        )
+        for axis, (_, dataset, _) in zip(axes, OBSERVABLE_SPECS):
+            axis.plot(data[backend]["time"], data[backend][dataset], label=backend)
 
-    axes[0].set_ylabel(r"$\sum_j \langle \sigma^z_j \rangle$")
-    axes[1].set_ylabel(r"$\sum_{j \ne k} \langle \sigma^z_j \sigma^z_k \rangle$")
-    axes[1].set_xlabel("time")
+    axes[0].set_ylabel(r"$\sum_i \langle Z_i \rangle / N$")
+    axes[1].set_ylabel(r"$\sum_{i \ne j} \langle Z_i Z_j \rangle / N^2$")
+    axes[2].set_ylabel(r"$\sum_{i \ne j \ne k} \langle Z_i Z_j Z_k \rangle / N^3$")
+    axes[3].set_ylabel(r"$\sum_{i \ne j \ne k \ne l} \langle Z_i Z_j Z_k Z_l \rangle / N^4$")
+    axes[3].set_xlabel("time")
     for axis in axes:
         axis.grid(alpha=0.25)
+        axis.set_ylim(-1.0, 1.0)
         axis.legend()
     fig.tight_layout()
     fig.savefig(output_path, dpi=160)
@@ -266,7 +305,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Plot and persist TFIM observables from unified runs.",
     )
-    parser.add_argument("--base-dir", default="../pkl/tfim_example")
+    parser.add_argument("--base-dir", default="../pkl/tfim_10spin")
     parser.add_argument("--output-h5")
     parser.add_argument("--output-plot")
     args = parser.parse_args()

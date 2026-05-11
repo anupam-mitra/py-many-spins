@@ -1,7 +1,7 @@
 {
   "model": {
     "kind": "tilted_field_ising_1d",
-    "n_sites": 8,
+    "n_sites": 10,
     "j_xx": -1.0,
     "b_z": -0.7,
     "b_x": 0.0,
@@ -15,8 +15,8 @@
   "time_grid": {
     "kind": "linspace",
     "start": 0.0,
-    "stop": 0.4,
-    "num": 81
+    "stop": 16.0,
+    "num": 321
   },
   "method": {
     "backend": "qutip",
@@ -25,11 +25,11 @@
     "evolution_params": {
       "dt": 0.005,
       "order": 2,
-      "N_steps": 2
+      "N_steps": 10
     }
   },
   "collapse_operators": [],
   "output": {
-    "base_dir": "../pkl/tfim_example"
+    "base_dir": "../pkl/tfim_10spin"
   }
 }
