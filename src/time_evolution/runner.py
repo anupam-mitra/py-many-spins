@@ -1,9 +1,8 @@
 from dataclasses import replace
-import time
-import uuid
 
 import numpy as np
 
+from manybody_util.history import history_records
 from manybody_util.spinmodel import tilted_field_ising_1d
 from time_evolution.persistence import RunStore
 from time_evolution.results import EvolutionResult
@@ -83,21 +82,20 @@ def _records_from_dataframe(dataframe):
     return dataframe.to_dict(orient="records")
 
 
+def _result_from_dataframe(dataframe, states, metadata):
+    return EvolutionResult(
+        records=_records_from_dataframe(dataframe),
+        states=states,
+        metadata=metadata,
+    )
+
+
 def _state_records(tlist, bonddim=None, trajectory_id=None):
-    records = []
-    for ix_time, time_value in enumerate(tlist):
-        record = {
-            "ix_time": ix_time,
-            "time": time_value,
-            "uuid_str": "%s" % uuid.uuid4(),
-            "walltime": time.time(),
-        }
-        if bonddim is not None:
-            record["bonddim"] = bonddim
-        if trajectory_id is not None:
-            record["trajectory_id"] = trajectory_id
-        records.append(record)
-    return records
+    return history_records(
+        tlist,
+        {"bonddim": bonddim, "trajectory_id": trajectory_id},
+        omit_none=True,
+    )
 
 
 def _local_spin_matrix(operator):
@@ -113,18 +111,6 @@ def _local_spin_matrix(operator):
     if operator == "z":
         return np.asarray([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
     raise ValueError("unsupported collapse operator %r" % (operator,))
-
-
-def _quimb_split_options(trunc_params):
-    params = trunc_params or {}
-    options = {}
-    if params.get("chi_max") is not None:
-        options["max_bond"] = params["chi_max"]
-    if params.get("cutoff") is not None:
-        options["cutoff"] = params["cutoff"]
-    elif params.get("svd_min") is not None:
-        options["cutoff"] = params["svd_min"]
-    return options
 
 
 def _build_quimb_collapse_ops(collapse_specs, n_sites):
@@ -204,11 +190,7 @@ def _run_tenpy(spec, spin_model, tlist):
         trunc_params=spec.method.trunc_params,
         metadata=metadata,
     )
-    return EvolutionResult(
-        records=_records_from_dataframe(dataframe),
-        states=states,
-        metadata=metadata,
-    )
+    return _result_from_dataframe(dataframe, states, metadata)
 
 
 def _quimb_evolution_params(spec, tlist):
@@ -218,9 +200,24 @@ def _quimb_evolution_params(spec, tlist):
     return params
 
 
+def _quimb_mcwf_tebd_params(evolution_params, tlist, n_substeps):
+    tebd_params = dict(evolution_params.get("tebd_params", {}))
+    for key in ("dt", "tol", "order", "progbar"):
+        if key in evolution_params and evolution_params[key] is not None:
+            tebd_params[key] = evolution_params[key]
+    if (
+        len(tlist) > 1
+        and tebd_params.get("dt") is None
+        and tebd_params.get("tol") is None
+    ):
+        tebd_params["dt"] = float(tlist[1] - tlist[0]) / n_substeps
+    return tebd_params
+
+
 def _run_quimb(spec, spin_model, tlist):
     import quimb.tensor as qtn
 
+    from manybody_backends.quimb.options import split_options
     from manybody_backends.quimb.quimbtebd import TEBDWrapper, spinhalf_state
     from manybody_backends.quimb.quimbmpstrajectory import solve_mps_trajectory
     from manybody_backends.quimb.spinmodel import to_quimb_spinham1d
@@ -231,19 +228,11 @@ def _run_quimb(spec, spin_model, tlist):
         cyclic=(spec.model.bc == "periodic"),
     )
     builder = to_quimb_spinham1d(spin_model)
+    metadata = _base_metadata(spec, tlist)
     if spec.method.algorithm == "MCWF":
         evolution_params = dict(spec.method.evolution_params)
-        tebd_params = dict(evolution_params.get("tebd_params", {}))
         n_substeps = int(evolution_params.get("n_substeps", 1))
-        for key in ("dt", "tol", "order", "progbar"):
-            if key in evolution_params and evolution_params[key] is not None:
-                tebd_params[key] = evolution_params[key]
-        if (
-            len(tlist) > 1
-            and tebd_params.get("dt") is None
-            and tebd_params.get("tol") is None
-        ):
-            tebd_params["dt"] = float(tlist[1] - tlist[0]) / n_substeps
+        tebd_params = _quimb_mcwf_tebd_params(evolution_params, tlist, n_substeps)
 
         trajectory = solve_mps_trajectory(
             initial_mps,
@@ -252,13 +241,13 @@ def _run_quimb(spec, spin_model, tlist):
             tlist,
             n_substeps=n_substeps,
             tebd_params=tebd_params,
-            split_opts=_quimb_split_options(spec.method.trunc_params),
+            split_opts=split_options(spec.method.trunc_params),
             random_numbers=evolution_params.get("random_numbers"),
             seed=evolution_params.get("seed"),
-            metadata=_base_metadata(spec, tlist),
+            metadata=metadata,
         )
         metadata = {
-            **_base_metadata(spec, tlist),
+            **metadata,
             "trajectory_id": trajectory.str_uuid,
             "tjumps": trajectory.tjumps,
             "whichjumps": trajectory.whichjumps,
@@ -284,11 +273,7 @@ def _run_quimb(spec, spin_model, tlist):
     )
     wrapper.evolve()
     dataframe, states = wrapper.get_mps_history_df()
-    return EvolutionResult(
-        records=_records_from_dataframe(dataframe),
-        states=states,
-        metadata=_base_metadata(spec, tlist),
-    )
+    return _result_from_dataframe(dataframe, states, metadata)
 
 
 def _run_qutip(spec, spin_model, tlist):
@@ -344,11 +329,7 @@ def _run_qutip(spec, spin_model, tlist):
             metadata=metadata,
         )
 
-    return EvolutionResult(
-        records=_records_from_dataframe(dataframe),
-        states=states,
-        metadata=metadata,
-    )
+    return _result_from_dataframe(dataframe, states, metadata)
 
 
 def _run_quspin(spec, spin_model, tlist):
@@ -362,6 +343,7 @@ def _run_quspin(spec, spin_model, tlist):
     )
 
     basis = to_quspin_basis(spin_model)
+    metadata = _base_metadata(spec, tlist)
     initial_state = manyspin_product_state(
         spin_model.n_sites,
         spec.initial_state.theta,
@@ -372,10 +354,6 @@ def _run_quspin(spec, spin_model, tlist):
         to_quspin_hamiltonian(spin_model, basis=basis),
         initial_state,
         tlist,
-        metadata=_base_metadata(spec, tlist),
+        metadata=metadata,
     )
-    return EvolutionResult(
-        records=_records_from_dataframe(dataframe),
-        states=states,
-        metadata=_base_metadata(spec, tlist),
-    )
+    return _result_from_dataframe(dataframe, states, metadata)

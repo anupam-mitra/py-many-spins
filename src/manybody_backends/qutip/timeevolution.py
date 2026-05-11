@@ -1,8 +1,7 @@
-import time
-import uuid
-
 import pandas
 import qutip
+
+from manybody_util.history import history_records
 
 
 def spinhalf_state(ang_polar, ang_azimuth):
@@ -22,15 +21,7 @@ def local_marginal_density_matrix(state, locations):
 
 
 def _history_rows(tlist):
-    rows = []
-    for ix_time, time_value in enumerate(tlist):
-        rows.append({
-            "ix_time": ix_time,
-            "time": time_value,
-            "uuid_str": "%s" % uuid.uuid4(),
-            "walltime": time.time(),
-        })
-    return pandas.DataFrame(rows)
+    return pandas.DataFrame(history_records(tlist))
 
 
 def _state_copies(states):

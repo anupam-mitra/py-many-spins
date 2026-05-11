@@ -1,10 +1,10 @@
 import itertools
-import time
-import uuid
 
 import numpy as np
 import pandas
 from quspin.basis import spin_basis_1d
+
+from manybody_util.history import history_records
 
 
 def spinhalf_basis(n_spins):
@@ -62,13 +62,4 @@ def solve_state_history(hamiltonian, initial_state, tlist, metadata=None):
             "QuSpin returned %d states for %d requested times" % (len(states), len(tlist))
         )
 
-    rows = []
-    for ix_time, time_value in enumerate(tlist):
-        rows.append({
-            "ix_time": ix_time,
-            "time": time_value,
-            "uuid_str": "%s" % uuid.uuid4(),
-            "walltime": time.time(),
-        })
-
-    return pandas.DataFrame(rows), states
+    return pandas.DataFrame(history_records(tlist)), states

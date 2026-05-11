@@ -1,12 +1,11 @@
-import time
-import uuid
-
 import numpy as np
 import pandas
 from tenpy.algorithms.mpo_evolution import ExpMPOEvolution
 from tenpy.algorithms.tebd import TEBDEngine
 from tenpy.algorithms.tdvp import TwoSiteTDVPEngine
 from tenpy.networks.mps import MPS
+
+from manybody_util.history import history_record
 
 
 def spinhalf_state(ang_polar, ang_azimuth):
@@ -101,13 +100,7 @@ def solve_mps_history(
 
     mps = initial_mps.copy()
     mps_list = [mps.copy()]
-    rows = [{
-        "ix_time": 0,
-        "time": tlist[0],
-        "bonddim": bonddim,
-        "uuid_str": "%s" % uuid.uuid4(),
-        "walltime": time.time(),
-    }]
+    rows = [history_record(0, tlist[0], {"bonddim": bonddim})]
 
     engine = _engine_class(algorithm)(
         mps,
@@ -120,12 +113,6 @@ def solve_mps_history(
         interval = tlist[ix_time] - tlist[ix_time - 1]
         engine.run_evolution(n_substeps, interval / n_substeps)
         mps_list.append(mps.copy())
-        rows.append({
-            "ix_time": ix_time,
-            "time": tlist[ix_time],
-            "bonddim": bonddim,
-            "uuid_str": "%s" % uuid.uuid4(),
-            "walltime": time.time(),
-        })
+        rows.append(history_record(ix_time, tlist[ix_time], {"bonddim": bonddim}))
 
     return pandas.DataFrame(rows), mps_list

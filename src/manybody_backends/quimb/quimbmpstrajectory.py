@@ -6,6 +6,12 @@ import quimb as qu
 import quimb.tensor as qtn
 import numpy as np
 
+from manybody_backends.quimb.options import (
+    gate_options,
+    tebd_evolution_options,
+    tebd_init_options,
+)
+
 
 @dataclass
 class MPSTrajectoryResult:
@@ -120,35 +126,6 @@ def _validate_collapse_ops(collapse_ops, n_sites):
     return tuple(operators)
 
 
-def _tebd_init_options(tebd_params):
-    params = tebd_params or {}
-    options = {}
-    for key in ("dt", "tol", "progbar"):
-        if params.get(key) is not None:
-            options[key] = params[key]
-    options.setdefault("progbar", False)
-    return options
-
-
-def _tebd_evolution_options(tebd_params):
-    params = tebd_params or {}
-    options = {}
-    for key in ("dt", "tol", "order", "progbar"):
-        if params.get(key) is not None:
-            options[key] = params[key]
-    options.setdefault("progbar", False)
-    return options
-
-
-def _gate_options(split_opts):
-    params = split_opts or {}
-    options = {}
-    for key in ("max_bond", "cutoff"):
-        if params.get(key) is not None:
-            options[key] = params[key]
-    return options
-
-
 def _coherent_step(mps, hamiltonian, t0, t1, tebd_params, split_opts):
     if hamiltonian is None or t1 == t0:
         return _copy_mps(mps)
@@ -157,28 +134,28 @@ def _coherent_step(mps, hamiltonian, t0, t1, tebd_params, split_opts):
         hamiltonian,
         t0=t0,
         split_opts=split_opts,
-        **_tebd_init_options(tebd_params),
+        **tebd_init_options(tebd_params),
     )
-    return next(iter(tebd.at_times([t1], **_tebd_evolution_options(tebd_params))))
+    return next(iter(tebd.at_times([t1], **tebd_evolution_options(tebd_params))))
 
 
-def _apply_no_jump_damping(mps, collapse_ops, dt, gate_options):
+def _apply_no_jump_damping(mps, collapse_ops, dt, gate_opts):
     state = mps
     for collapse_spec in collapse_ops:
         collapse_op = collapse_spec["operator"]
         damping_gate = qu.expm(-0.5 * dt * (qu.dag(collapse_op) @ collapse_op))
         for site in collapse_spec["sites"]:
-            state = state.gate(damping_gate, site, contract=True, **gate_options)
+            state = state.gate(damping_gate, site, contract=True, **gate_opts)
     return state
 
 
-def _jump_probabilities(mps, collapse_ops, gate_options):
+def _jump_probabilities(mps, collapse_ops, gate_opts):
     probabilities = []
     jump_states = []
     for op_index, collapse_spec in enumerate(collapse_ops):
         collapse_op = collapse_spec["operator"]
         for site in collapse_spec["sites"]:
-            jump_state = mps.gate(collapse_op, site, contract=True, **gate_options)
+            jump_state = mps.gate(collapse_op, site, contract=True, **gate_opts)
             jump_states.append((op_index, site, jump_state))
             probabilities.append(_mps_norm(jump_state))
 
@@ -218,7 +195,7 @@ def solve_mps_trajectory(
     if n_substeps < 1:
         raise ValueError("n_substeps must be at least 1")
 
-    gate_options = _gate_options(split_opts)
+    gate_opts = gate_options(split_opts)
     random_draws = _RandomDraws(random_numbers=random_numbers, rng=rng, seed=seed)
 
     state = _normalize_mps(_copy_mps(initial_mps))
@@ -243,7 +220,7 @@ def solve_mps_trajectory(
             state = _coherent_step(state, hamiltonian, t0, t1, tebd_params, split_opts)
 
             if collapse_ops:
-                state = _apply_no_jump_damping(state, collapse_ops, dt, gate_options)
+                state = _apply_no_jump_damping(state, collapse_ops, dt, gate_opts)
                 norm = _mps_norm(state)
                 if debug:
                     print("MCWF step t=%g norm=%g threshold=%g" % (t1, norm, jump_threshold))
@@ -251,7 +228,7 @@ def solve_mps_trajectory(
                     probabilities, jump_states = _jump_probabilities(
                         state,
                         collapse_ops,
-                        gate_options,
+                        gate_opts,
                     )
                     choice = random_draws.choice()
                     cumulative = np.cumsum(probabilities)
