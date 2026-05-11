@@ -91,13 +91,32 @@ def _validate_tlist(tlist):
     return tlist
 
 
-def _validate_collapse_ops(collapse_ops):
+def _validate_collapse_sites(sites, n_sites):
+    if sites == "all":
+        return tuple(range(n_sites))
+    sites = tuple(sites)
+    if len(sites) == 0:
+        raise ValueError("collapse operator sites must be non-empty")
+    for site in sites:
+        if site < 0 or site >= n_sites:
+            raise ValueError("collapse operator site %d exceeds n_sites" % (site,))
+    return sites
+
+
+def _validate_collapse_ops(collapse_ops, n_sites):
     operators = []
     for operator in collapse_ops or ():
+        sites = "all"
+        if isinstance(operator, dict):
+            sites = operator.get("sites", "all")
+            operator = operator["operator"]
         operator = np.asarray(operator, dtype=complex)
         if operator.shape != (2, 2):
             raise ValueError("collapse operators must be single-site 2x2 arrays")
-        operators.append(operator)
+        operators.append({
+            "operator": operator,
+            "sites": _validate_collapse_sites(sites, n_sites),
+        })
     return tuple(operators)
 
 
@@ -145,9 +164,10 @@ def _coherent_step(mps, hamiltonian, t0, t1, tebd_params, split_opts):
 
 def _apply_no_jump_damping(mps, collapse_ops, dt, gate_options):
     state = mps
-    for collapse_op in collapse_ops:
+    for collapse_spec in collapse_ops:
+        collapse_op = collapse_spec["operator"]
         damping_gate = qu.expm(-0.5 * dt * (qu.dag(collapse_op) @ collapse_op))
-        for site in range(_n_sites(state)):
+        for site in collapse_spec["sites"]:
             state = state.gate(damping_gate, site, contract=True, **gate_options)
     return state
 
@@ -155,9 +175,9 @@ def _apply_no_jump_damping(mps, collapse_ops, dt, gate_options):
 def _jump_probabilities(mps, collapse_ops, gate_options):
     probabilities = []
     jump_states = []
-    n_sites = _n_sites(mps)
-    for op_index, collapse_op in enumerate(collapse_ops):
-        for site in range(n_sites):
+    for op_index, collapse_spec in enumerate(collapse_ops):
+        collapse_op = collapse_spec["operator"]
+        for site in collapse_spec["sites"]:
             jump_state = mps.gate(collapse_op, site, contract=True, **gate_options)
             jump_states.append((op_index, site, jump_state))
             probabilities.append(_mps_norm(jump_state))
@@ -193,7 +213,7 @@ def solve_mps_trajectory(
     of the states before save-time normalization.
     """
     tlist = _validate_tlist(tlist)
-    collapse_ops = _validate_collapse_ops(collapse_ops)
+    collapse_ops = _validate_collapse_ops(collapse_ops, _n_sites(initial_mps))
     n_substeps = int(n_substeps)
     if n_substeps < 1:
         raise ValueError("n_substeps must be at least 1")

@@ -4,12 +4,18 @@ from typing import Any
 
 SUPPORTED_METHODS = {
     "tenpy": {"TEBD", "TDVP", "ExpMPO"},
-    "quimb": {"TEBD"},
-    "qutip": {"sesolve"},
+    "quimb": {"TEBD", "MCWF"},
+    "qutip": {"sesolve", "mesolve", "mcsolve"},
     "quspin": {"evolve"},
 }
 
 EXACT_BACKENDS = frozenset(("qutip", "quspin"))
+DISSIPATIVE_METHODS = frozenset((
+    ("quimb", "MCWF"),
+    ("qutip", "mesolve"),
+    ("qutip", "mcsolve"),
+))
+COLLAPSE_OPERATORS = frozenset(("sigmam", "sigmap", "x", "y", "z"))
 
 
 def _clean_dict(value):
@@ -111,6 +117,69 @@ class TimeGridSpec:
 
 
 @dataclass(frozen=True)
+class CollapseOperatorSpec:
+    kind: str = "local_spin"
+    operator: str = "sigmam"
+    rate: float = 1.0
+    sites: Any = "all"
+
+    def __post_init__(self):
+        object.__setattr__(self, "operator", self.operator.lower())
+        if isinstance(self.sites, int):
+            object.__setattr__(self, "sites", (self.sites,))
+        elif self.sites != "all" and not isinstance(self.sites, tuple):
+            object.__setattr__(self, "sites", tuple(self.sites))
+
+    @classmethod
+    def local_spin(cls, operator, rate, sites="all"):
+        return cls(kind="local_spin", operator=operator, rate=rate, sites=sites)
+
+    @classmethod
+    def from_dict(cls, data):
+        data = dict(data)
+        data.setdefault("kind", "local_spin")
+        data.setdefault("sites", "all")
+        if data["sites"] != "all" and not isinstance(data["sites"], int):
+            data["sites"] = tuple(data["sites"])
+        return cls(**data)
+
+    def to_dict(self):
+        return {
+            "kind": self.kind,
+            "operator": self.operator,
+            "rate": self.rate,
+            "sites": list(self.sites) if self.sites != "all" else "all",
+        }
+
+    def validate(self, n_sites=None):
+        if self.kind != "local_spin":
+            raise ValueError("unsupported collapse operator kind %r" % (self.kind,))
+        if self.operator not in COLLAPSE_OPERATORS:
+            raise ValueError("unsupported collapse operator %r" % (self.operator,))
+        if self.rate < 0.0:
+            raise ValueError("collapse operator rate must be non-negative")
+        if self.sites == "all":
+            return
+        if not isinstance(self.sites, (list, tuple)):
+            raise ValueError("collapse operator sites must be 'all' or a sequence")
+        if len(self.sites) == 0:
+            raise ValueError("collapse operator sites must be non-empty")
+        for site in self.sites:
+            if not isinstance(site, int):
+                raise ValueError("collapse operator sites must be integers")
+            if site < 0:
+                raise ValueError("collapse operator sites must be non-negative")
+            if n_sites is not None and site >= n_sites:
+                raise ValueError("collapse operator site %d exceeds n_sites" % (site,))
+
+    def expanded_sites(self, n_sites):
+        self.validate(n_sites=n_sites)
+        if self.sites == "all":
+            return tuple(range(n_sites))
+        return tuple(self.sites)
+
+
+@dataclass(frozen=True)
 class MethodSpec:
     backend: str
     algorithm: str
@@ -166,6 +235,7 @@ class SimulationSpec:
     initial_state: InitialStateSpec
     time_grid: TimeGridSpec
     method: MethodSpec
+    collapse_operators: tuple[CollapseOperatorSpec, ...] = ()
     output: OutputSpec = field(default_factory=OutputSpec)
 
     @classmethod
@@ -176,6 +246,10 @@ class SimulationSpec:
             initial_state=InitialStateSpec.from_dict(data["initial_state"]),
             time_grid=TimeGridSpec.from_dict(data["time_grid"]),
             method=MethodSpec.from_dict(data["method"]),
+            collapse_operators=tuple(
+                CollapseOperatorSpec.from_dict(item)
+                for item in data.get("collapse_operators") or ()
+            ),
             output=OutputSpec.from_dict(data.get("output")),
         )
         spec.validate()
@@ -187,6 +261,9 @@ class SimulationSpec:
             "initial_state": self.initial_state.to_dict(),
             "time_grid": self.time_grid.to_dict(),
             "method": self.method.to_dict(),
+            "collapse_operators": [
+                collapse.to_dict() for collapse in self.collapse_operators
+            ],
             "output": self.output.to_dict(),
         }
 
@@ -195,4 +272,12 @@ class SimulationSpec:
         self.initial_state.validate()
         self.time_grid.validate()
         self.method.validate()
+        for collapse in self.collapse_operators:
+            collapse.validate(n_sites=self.model.n_sites)
+        method_key = (self.method.backend.lower(), self.method.algorithm)
+        if self.collapse_operators and method_key not in DISSIPATIVE_METHODS:
+            raise ValueError(
+                "collapse operators are not supported for backend %r algorithm %r"
+                % (self.method.backend, self.method.algorithm)
+            )
         self.output.validate()

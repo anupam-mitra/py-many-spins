@@ -10,11 +10,11 @@ using a few python libraries `quimb`, `tenpy`, `qutip`, and `quspin`.
 - `manybody_backends.quimb`: contains the Quimb backend implementation.
   - `spinmodel`: converts shared spin models to Quimb Hamiltonian builders.
   - `quimbtebd`: provides MPS evolution using Quimb TEBD.
-  - `quimbmpstrajectory`: retained for MCWF trajectory development.
+  - `quimbmpstrajectory`: provides MPS MCWF trajectory evolution.
 
 - `manybody_backends.qutip`: contains the QuTiP backend implementation.
   - `spinmodel`: converts shared spin models to exact QuTiP Hamiltonians.
-  - `timeevolution`: provides exact state evolution using `qutip.sesolve`.
+  - `timeevolution`: provides exact state evolution using `qutip.sesolve`, `qutip.mesolve`, and `qutip.mcsolve`.
 
 - `manybody_backends.quspin`: contains the QuSpin backend implementation.
   - `spinmodel`: converts shared spin models to exact QuSpin Hamiltonians.
@@ -27,8 +27,8 @@ using a few python libraries `quimb`, `tenpy`, `qutip`, and `quspin`.
 ## Unified JSON evolution
 
 `dynamics/mainEvolve.py` runs the shared JSON schema through one of the supported
-backends: TenPy `TEBD`/`TDVP`/`ExpMPO`, Quimb `TEBD`, QuTiP `sesolve`, or QuSpin
-`evolve`.
+backends: TenPy `TEBD`/`TDVP`/`ExpMPO`, Quimb `TEBD`/`MCWF`, QuTiP
+`sesolve`/`mesolve`/`mcsolve`, or QuSpin `evolve`.
 
 Example config:
 
@@ -59,10 +59,24 @@ Example config:
     "trunc_params": {},
     "evolution_params": {}
   },
+  "collapse_operators": [],
   "output": {
     "base_dir": "../pkl"
   }
 }
+```
+
+Dissipative methods accept local spin collapse operators:
+
+```json
+"collapse_operators": [
+  {
+    "kind": "local_spin",
+    "operator": "sigmam",
+    "rate": 0.1,
+    "sites": "all"
+  }
+]
 ```
 
 Run from `dynamics/`:
