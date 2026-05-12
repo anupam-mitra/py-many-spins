@@ -88,18 +88,20 @@ Dissipative methods accept local spin collapse operators:
 ]
 ```
 
-Run all four backends from `dynamics/`:
+Run the demo backends and algorithms from `dynamics/`:
 
 ```bash
 ../.venv/bin/python mainEvolve.py --config config_tfim.json --backend qutip --algorithm sesolve
 ../.venv/bin/python mainEvolve.py --config config_tfim.json --backend quspin --algorithm evolve
 ../.venv/bin/python mainEvolve.py --config config_tfim.json --backend quimb --algorithm TEBD --bonddim 32
 ../.venv/bin/python mainEvolve.py --config config_tfim.json --backend tenpy --algorithm TEBD --bonddim 32
+../.venv/bin/python mainEvolve.py --config config_tfim.json --backend tenpy --algorithm TDVP --bonddim 32
+../.venv/bin/python mainEvolve.py --config config_tfim.json --backend tenpy --algorithm ExpMPO --bonddim 32
 ```
 
 The exact QuTiP and QuSpin runs intentionally omit `--bonddim`; the Quimb and
 TenPy MPS runs use `--bonddim 32`, matching the maximum exact middle-cut rank
-for the 10-spin chain.
+for the 10-spin chain. The TenPy demo includes `TEBD`, `TDVP`, and `ExpMPO`.
 
 Plot and persist TFIM observables from the latest matching run for each backend:
 
@@ -107,9 +109,10 @@ Plot and persist TFIM observables from the latest matching run for each backend:
 ../.venv/bin/python plot_tfim_observables.py --base-dir ../pkl/tfim_10spin
 ```
 
-This writes `../pkl/tfim_10spin/observables/tfim_observables.h5` with
-normalized ordered distinct-site sums `z1`, `z2_offdiag`, `z3_offdiag`, and
-`z4_offdiag`, plus an overlay plot at
+This writes `../pkl/tfim_10spin/observables/tfim_observables.h5` with one group
+per demo curve: `qutip`, `quspin`, `quimb`, `tenpy_TEBD`, `tenpy_TDVP`, and
+`tenpy_ExpMPO`. Each group contains normalized ordered distinct-site sums `z1`,
+`z2_offdiag`, `z3_offdiag`, and `z4_offdiag`, plus an overlay plot at
 `../pkl/tfim_10spin/plots/tfim_observables.png`. The datasets divide the raw
 order-`p` sums by `N^p`, so each plotted y-axis is between `-1` and `1`.
 

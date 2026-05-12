@@ -1,0 +1,40 @@
+{
+  "model": {
+    "kind": "tilted_field_ising_1d",
+    "n_sites": 10,
+    "j_xx": -1.0,
+    "b_z": -0.7,
+    "b_x": 0.0,
+    "bc": "open"
+  },
+  "initial_state": {
+    "kind": "spin_coherent_product",
+    "theta": 1.5707963267948966,
+    "phi": 0.0
+  },
+  "time_grid": {
+    "kind": "linspace",
+    "start": 0.0,
+    "stop": 16.0,
+    "num": 321
+  },
+  "method": {
+    "backend": "tenpy",
+    "algorithm": "ExpMPO",
+    "trunc_params": {
+      "chi_max": 32,
+      "svd_min": 1e-10
+    },
+    "evolution_params": {
+      "dt": 0.05,
+      "order": 2,
+      "approximation": "II",
+      "compression_method": "SVD",
+      "N_steps": 1
+    }
+  },
+  "collapse_operators": [],
+  "output": {
+    "base_dir": "../pkl/tfim_10spin_tenpy_expmpo"
+  }
+}

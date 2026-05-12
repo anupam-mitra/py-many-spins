@@ -69,6 +69,8 @@ def _engine_options(algorithm, evolution_params, trunc_params):
     }
     options.pop("dt", None)
     options.pop("N_steps", None)
+    if algorithm == "TDVP":
+        options.pop("order", None)
     options["trunc_params"] = _clean_dict(trunc_params)
     return options
 
