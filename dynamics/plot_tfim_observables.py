@@ -17,12 +17,16 @@ from time_evolution.persistence import RunStore
 
 
 DEMO_RUNS = (
-    {"label": "qutip", "backend": "qutip", "algorithm": "sesolve", "method_type": "sesolve"},
-    {"label": "quspin", "backend": "quspin", "algorithm": "evolve", "method_type": "evolve"},
-    {"label": "quimb", "backend": "quimb", "algorithm": "TEBD", "method_type": "MPS-based"},
-    {"label": "tenpy_TEBD", "backend": "tenpy", "algorithm": "TEBD", "method_type": "MPS-based"},
-    {"label": "tenpy_TDVP", "backend": "tenpy", "algorithm": "TDVP", "method_type": "MPS-based"},
-    {"label": "tenpy_ExpMPO", "backend": "tenpy", "algorithm": "ExpMPO", "method_type": "MPS-based"},
+    {"label": "qutip",            "backend": "qutip",  "algorithm": "sesolve", "method_type": "sesolve"},
+    {"label": "quspin",           "backend": "quspin", "algorithm": "evolve",  "method_type": "evolve"},
+    {"label": "quimb",            "backend": "quimb",  "algorithm": "TEBD",    "method_type": "MPS-based"},
+    {"label": "quimb_chi4",       "backend": "quimb",  "algorithm": "TEBD",    "method_type": "MPS-based"},
+    {"label": "tenpy_TEBD",       "backend": "tenpy",  "algorithm": "TEBD",    "method_type": "MPS-based"},
+    {"label": "tenpy_TEBD_chi4",  "backend": "tenpy",  "algorithm": "TEBD",    "method_type": "MPS-based"},
+    {"label": "tenpy_TDVP",       "backend": "tenpy",  "algorithm": "TDVP",    "method_type": "MPS-based"},
+    {"label": "tenpy_TDVP_chi4",  "backend": "tenpy",  "algorithm": "TDVP",    "method_type": "MPS-based"},
+    {"label": "tenpy_ExpMPO",     "backend": "tenpy",  "algorithm": "ExpMPO",  "method_type": "MPS-based"},
+    {"label": "tenpy_ExpMPO_chi4","backend": "tenpy",  "algorithm": "ExpMPO",  "method_type": "MPS-based"},
 )
 SIGMA_Z = np.asarray([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
 OBSERVABLE_SPECS = (
@@ -234,8 +238,12 @@ def _observable_data(base_dir, selected_runs):
     for label, run_record in selected_runs.items():
         times, states = _load_states(base_dir, run_record)
         backend = run_record["backend"]
+        bonddim = run_record["metadata"].get("bonddim")
         data[label] = {
             "time": times,
+            "backend": backend,
+            "algorithm": run_record["algorithm"],
+            **({"bonddim": bonddim} if bonddim is not None else {}),
             **calculators[backend](states, run_record["n_sites"]),
         }
     return data
@@ -282,7 +290,20 @@ def _write_hdf5(output_path, data, selected_runs):
                 group.attrs[key] = _json_attr(value)
 
 
-def _write_plot(output_path, data, selected_runs):
+def _plot_label(run_spec, data):
+    """Build the legend label from data metadata stored alongside observables."""
+    entry = data[run_spec["label"]]
+    backend = entry["backend"]
+    algorithm = entry["algorithm"]
+    bonddim = entry.get("bonddim")
+    method_type = run_spec.get("method_type", "")
+    algo_part = f"{backend}/{algorithm}"
+    if bonddim is not None:
+        algo_part += f" (χ={bonddim})"
+    return f"{algo_part} - {method_type}"
+
+
+def _write_plot(output_path, data):
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(4, 1, figsize=(8.0, 9.5), sharex=True)
 
@@ -290,18 +311,7 @@ def _write_plot(output_path, data, selected_runs):
         label = run_spec["label"]
         if label not in data:
             continue
-        run_record = selected_runs[label]
-        backend = run_record["backend"]
-        algorithm = run_record["algorithm"]
-        bonddim = run_record["metadata"].get("bonddim")
-        method_type = run_spec.get("method_type", "")
-
-        # Build plot label: "backend/algorithm (χ=N) - method_type"
-        algo_part = f"{backend}/{algorithm}"
-        if bonddim is not None:
-            algo_part += f" (χ={bonddim})"
-        plot_label = f"{algo_part} - {method_type}"
-        
+        plot_label = _plot_label(run_spec, data)
         for axis, (_, dataset, _) in zip(axes, OBSERVABLE_SPECS):
             axis.plot(
                 data[label]["time"],
@@ -317,7 +327,7 @@ def _write_plot(output_path, data, selected_runs):
     for axis in axes:
         axis.grid(alpha=0.25)
         axis.set_ylim(-1.0, 1.0)
-        axis.legend()
+        axis.legend(fontsize=7)
     fig.tight_layout()
     fig.savefig(output_path, dpi=160)
     plt.close(fig)
@@ -343,7 +353,7 @@ def main():
     selected_runs = _select_latest_runs(base_dir, DEMO_RUNS)
     data = _observable_data(base_dir, selected_runs)
     _write_hdf5(output_h5, data, selected_runs)
-    _write_plot(output_plot, data, selected_runs)
+    _write_plot(output_plot, data)
 
     print(output_h5)
     print(output_plot)

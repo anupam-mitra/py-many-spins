@@ -1,0 +1,37 @@
+{
+  "model": {
+    "kind": "tilted_field_ising_1d",
+    "n_sites": 10,
+    "j_xx": -1.0,
+    "b_z": -0.7,
+    "b_x": 0.0,
+    "bc": "open"
+  },
+  "initial_state": {
+    "kind": "spin_coherent_product",
+    "theta": 1.5707963267948966,
+    "phi": 0.0
+  },
+  "time_grid": {
+    "kind": "linspace",
+    "start": 0.0,
+    "stop": 16.0,
+    "num": 321
+  },
+  "method": {
+    "backend": "quimb",
+    "algorithm": "TEBD",
+    "trunc_params": {
+      "chi_max": 4
+    },
+    "evolution_params": {
+      "dt": 0.005,
+      "order": 2,
+      "N_steps": 10
+    }
+  },
+  "collapse_operators": [],
+  "output": {
+    "base_dir": "../pkl/tfim_10spin"
+  }
+}
