@@ -17,12 +17,12 @@ from time_evolution.persistence import RunStore
 
 
 DEMO_RUNS = (
-    {"label": "qutip", "backend": "qutip", "algorithm": "sesolve"},
-    {"label": "quspin", "backend": "quspin", "algorithm": "evolve"},
-    {"label": "quimb", "backend": "quimb", "algorithm": "TEBD"},
-    {"label": "tenpy_TEBD", "backend": "tenpy", "algorithm": "TEBD"},
-    {"label": "tenpy_TDVP", "backend": "tenpy", "algorithm": "TDVP"},
-    {"label": "tenpy_ExpMPO", "backend": "tenpy", "algorithm": "ExpMPO"},
+    {"label": "qutip", "backend": "qutip", "algorithm": "sesolve", "method_type": "sesolve"},
+    {"label": "quspin", "backend": "quspin", "algorithm": "evolve", "method_type": "evolve"},
+    {"label": "quimb", "backend": "quimb", "algorithm": "TEBD", "method_type": "MPS-based"},
+    {"label": "tenpy_TEBD", "backend": "tenpy", "algorithm": "TEBD", "method_type": "MPS-based"},
+    {"label": "tenpy_TDVP", "backend": "tenpy", "algorithm": "TDVP", "method_type": "MPS-based"},
+    {"label": "tenpy_ExpMPO", "backend": "tenpy", "algorithm": "ExpMPO", "method_type": "MPS-based"},
 )
 SIGMA_Z = np.asarray([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
 OBSERVABLE_SPECS = (
@@ -293,10 +293,14 @@ def _write_plot(output_path, data, selected_runs):
         run_record = selected_runs[label]
         algorithm = run_record["algorithm"]
         bonddim = run_record["metadata"].get("bonddim")
+        method_type = run_spec.get("method_type", "")
+        
+        # Build plot label with algorithm, bond dimension, and method type
         if bonddim is not None:
-            plot_label = f"{algorithm} (χ={bonddim})"
+            plot_label = f"{algorithm} (χ={bonddim}) - {method_type}"
         else:
-            plot_label = algorithm
+            plot_label = f"{algorithm} - {method_type}"
+        
         for axis, (_, dataset, _) in zip(axes, OBSERVABLE_SPECS):
             axis.plot(
                 data[label]["time"],
