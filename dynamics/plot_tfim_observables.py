@@ -303,6 +303,83 @@ def _plot_label(run_spec, data):
     return f"{algo_part} - {method_type}"
 
 
+REFERENCES = (
+    ("qutip",  "qutip/sesolve"),
+    ("quspin", "quspin/evolve"),
+)
+
+# MPS-based methods shown in the error plot (excludes the two references)
+ERROR_RUNS = (
+    "quimb",
+    "quimb_chi4",
+    "tenpy_TEBD",
+    "tenpy_TEBD_chi4",
+    "tenpy_TDVP",
+    "tenpy_TDVP_chi4",
+    "tenpy_ExpMPO",
+    "tenpy_ExpMPO_chi4",
+)
+
+
+def _write_error_plot(output_path, data):
+    """4-row × 2-col grid: rows = observables, cols = references.
+    Each panel shows |method − reference| vs time on a log scale."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    obs_keys = [ds for _, ds, _ in OBSERVABLE_SPECS]
+    obs_ylabels = (
+        r"$|\Delta \sum_i \langle Z_i \rangle / N|$",
+        r"$|\Delta \sum_{i \ne j} \langle Z_i Z_j \rangle / N^2|$",
+        r"$|\Delta \sum_{i \ne j \ne k} \langle Z_i Z_j Z_k \rangle / N^3|$",
+        r"$|\Delta \sum_{i \ne j \ne k \ne l} \langle Z_i Z_j Z_k Z_l \rangle / N^4|$",
+    )
+
+    fig, axes = plt.subplots(
+        4, 2,
+        figsize=(12.0, 11.0),
+        sharex=True,
+        sharey="row",
+    )
+
+    for col, (ref_label, ref_display) in enumerate(REFERENCES):
+        if ref_label not in data:
+            continue
+        ref_time = data[ref_label]["time"]
+
+        axes[0, col].set_title(f"reference: {ref_display}", fontsize=9)
+
+        for row, (ds, ylabel) in enumerate(zip(obs_keys, obs_ylabels)):
+            ax = axes[row, col]
+            ref_vals = data[ref_label][ds]
+
+            for run_spec in DEMO_RUNS:
+                lbl = run_spec["label"]
+                if lbl not in data or lbl in (r for r, _ in REFERENCES):
+                    continue
+                if lbl not in ERROR_RUNS:
+                    continue
+                method_time = data[lbl]["time"]
+                # interpolate reference onto method time grid if needed
+                ref_interp = np.interp(method_time, ref_time, ref_vals)
+                err = np.abs(data[lbl][ds] - ref_interp)
+                plot_label = _plot_label(run_spec, data)
+                ax.semilogy(method_time, np.where(err > 0, err, np.nan), label=plot_label)
+
+            ax.set_ylabel(ylabel, fontsize=7)
+            ax.grid(alpha=0.25, which="both")
+            if row == 3:
+                ax.set_xlabel("time")
+
+    # single shared legend beneath the figure
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=2, fontsize=7,
+               bbox_to_anchor=(0.5, 0.0))
+    fig.suptitle("Absolute error vs exact references", fontsize=10)
+    fig.tight_layout(rect=(0, 0.13, 1, 1))
+    fig.savefig(output_path, dpi=160)
+    plt.close(fig)
+
+
 def _write_plot(output_path, data):
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(4, 1, figsize=(8.0, 9.5), sharex=True)
@@ -340,6 +417,7 @@ def main():
     parser.add_argument("--base-dir", default="../pkl/tfim_10spin")
     parser.add_argument("--output-h5")
     parser.add_argument("--output-plot")
+    parser.add_argument("--output-error-plot")
     args = parser.parse_args()
 
     base_dir = Path(args.base_dir)
@@ -349,14 +427,19 @@ def main():
     output_plot = Path(args.output_plot) if args.output_plot else (
         base_dir / "plots" / "tfim_observables.png"
     )
+    output_error_plot = Path(args.output_error_plot) if args.output_error_plot else (
+        base_dir / "plots" / "tfim_observables_error.png"
+    )
 
     selected_runs = _select_latest_runs(base_dir, DEMO_RUNS)
     data = _observable_data(base_dir, selected_runs)
     _write_hdf5(output_h5, data, selected_runs)
     _write_plot(output_plot, data)
+    _write_error_plot(output_error_plot, data)
 
     print(output_h5)
     print(output_plot)
+    print(output_error_plot)
 
 
 if __name__ == "__main__":
