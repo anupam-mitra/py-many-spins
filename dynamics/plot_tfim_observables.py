@@ -16,13 +16,14 @@ from time_evolution.config_io import load_json
 from time_evolution.persistence import RunStore
 
 
-BACKENDS = ("qutip", "quspin", "quimb", "tenpy")
-DEFAULT_ALGORITHMS = {
-    "qutip": "sesolve",
-    "quspin": "evolve",
-    "quimb": "TEBD",
-    "tenpy": "TEBD",
-}
+DEMO_RUNS = (
+    {"label": "qutip", "backend": "qutip", "algorithm": "sesolve"},
+    {"label": "quspin", "backend": "quspin", "algorithm": "evolve"},
+    {"label": "quimb", "backend": "quimb", "algorithm": "TEBD"},
+    {"label": "tenpy_TEBD", "backend": "tenpy", "algorithm": "TEBD"},
+    {"label": "tenpy_TDVP", "backend": "tenpy", "algorithm": "TDVP"},
+    {"label": "tenpy_ExpMPO", "backend": "tenpy", "algorithm": "ExpMPO"},
+)
 SIGMA_Z = np.asarray([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
 OBSERVABLE_SPECS = (
     (1, "z1", "sum_i <sigma^z_i> / N"),
@@ -112,11 +113,13 @@ def _run_records(base_dir):
     return records
 
 
-def _select_latest_runs(base_dir, backends):
+def _select_latest_runs(base_dir, run_specs):
     records = _run_records(base_dir)
     selected = {}
-    for backend in backends:
-        algorithm = DEFAULT_ALGORITHMS[backend]
+    for run_spec in run_specs:
+        label = run_spec["label"]
+        backend = run_spec["backend"]
+        algorithm = run_spec["algorithm"]
         matches = [
             record for record in records
             if record["backend"] == backend and record["algorithm"] == algorithm
@@ -125,7 +128,7 @@ def _select_latest_runs(base_dir, backends):
             raise ValueError(
                 "no %s/%s run found under %s" % (backend, algorithm, base_dir)
             )
-        selected[backend] = max(
+        selected[label] = max(
             matches,
             key=lambda record: (record["time_count"], record["updated_at"], record["run_id"]),
         )
@@ -228,9 +231,10 @@ def _observable_data(base_dir, selected_runs):
         "tenpy": _tenpy_observables,
     }
     data = {}
-    for backend, run_record in selected_runs.items():
+    for label, run_record in selected_runs.items():
         times, states = _load_states(base_dir, run_record)
-        data[backend] = {
+        backend = run_record["backend"]
+        data[label] = {
             "time": times,
             **calculators[backend](states, run_record["n_sites"]),
         }
@@ -254,8 +258,8 @@ def _write_hdf5(output_path, data, selected_runs):
         for dataset, description in DESCRIPTION_BY_DATASET.items():
             h5file.attrs[dataset] = description
 
-        for backend, values in data.items():
-            group = h5file.create_group(backend)
+        for label, values in data.items():
+            group = h5file.create_group(label)
             group.create_dataset("time", data=values["time"])
             for _, dataset, _ in OBSERVABLE_SPECS:
                 h5_dataset = group.create_dataset(dataset, data=values[dataset])
@@ -263,9 +267,10 @@ def _write_hdf5(output_path, data, selected_runs):
                 h5_dataset.attrs["normalization"] = "N^%d" % ORDER_BY_DATASET[dataset]
                 h5_dataset.attrs["site_counting"] = "ordered distinct-site tuples"
 
-            run_record = selected_runs[backend]
+            run_record = selected_runs[label]
             metadata = run_record["metadata"]
             group.attrs["run_id"] = run_record["run_id"]
+            group.attrs["backend"] = run_record["backend"]
             group.attrs["algorithm"] = run_record["algorithm"]
             group.attrs["n_sites"] = run_record["n_sites"]
             group.attrs["source_run_dir"] = str(run_record["run_dir"])
@@ -277,15 +282,27 @@ def _write_hdf5(output_path, data, selected_runs):
                 group.attrs[key] = _json_attr(value)
 
 
-def _write_plot(output_path, data):
+def _write_plot(output_path, data, selected_runs):
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(4, 1, figsize=(8.0, 9.5), sharex=True)
 
-    for backend in BACKENDS:
-        if backend not in data:
+    for run_spec in DEMO_RUNS:
+        label = run_spec["label"]
+        if label not in data:
             continue
+        run_record = selected_runs[label]
+        algorithm = run_record["algorithm"]
+        bonddim = run_record["metadata"].get("bonddim")
+        if bonddim is not None:
+            plot_label = f"{algorithm} (χ={bonddim})"
+        else:
+            plot_label = algorithm
         for axis, (_, dataset, _) in zip(axes, OBSERVABLE_SPECS):
-            axis.plot(data[backend]["time"], data[backend][dataset], label=backend)
+            axis.plot(
+                data[label]["time"],
+                data[label][dataset],
+                label=plot_label,
+            )
 
     axes[0].set_ylabel(r"$\sum_i \langle Z_i \rangle / N$")
     axes[1].set_ylabel(r"$\sum_{i \ne j} \langle Z_i Z_j \rangle / N^2$")
@@ -318,10 +335,10 @@ def main():
         base_dir / "plots" / "tfim_observables.png"
     )
 
-    selected_runs = _select_latest_runs(base_dir, BACKENDS)
+    selected_runs = _select_latest_runs(base_dir, DEMO_RUNS)
     data = _observable_data(base_dir, selected_runs)
     _write_hdf5(output_h5, data, selected_runs)
-    _write_plot(output_plot, data)
+    _write_plot(output_plot, data, selected_runs)
 
     print(output_h5)
     print(output_plot)
