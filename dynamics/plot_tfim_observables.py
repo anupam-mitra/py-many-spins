@@ -291,15 +291,16 @@ def _write_plot(output_path, data, selected_runs):
         if label not in data:
             continue
         run_record = selected_runs[label]
+        backend = run_record["backend"]
         algorithm = run_record["algorithm"]
         bonddim = run_record["metadata"].get("bonddim")
         method_type = run_spec.get("method_type", "")
-        
-        # Build plot label with algorithm, bond dimension, and method type
+
+        # Build plot label: "backend/algorithm (χ=N) - method_type"
+        algo_part = f"{backend}/{algorithm}"
         if bonddim is not None:
-            plot_label = f"{algorithm} (χ={bonddim}) - {method_type}"
-        else:
-            plot_label = f"{algorithm} - {method_type}"
+            algo_part += f" (χ={bonddim})"
+        plot_label = f"{algo_part} - {method_type}"
         
         for axis, (_, dataset, _) in zip(axes, OBSERVABLE_SPECS):
             axis.plot(
