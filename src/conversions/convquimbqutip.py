@@ -1,21 +1,22 @@
 import qutip
 import quimb.tensor as qtn
 import numpy as np
+from typing import Any
 
-
-def convert_quimb_mp_to_qutip_qobj(quimb_mp):
+ 
+def convert_quimb_mp_to_qutip_qobj(quimb_mp: Any) -> Any:
     """
     Convert a Quimb matrix-product state or operator to a QuTiP ``Qobj``.
 
     Parameters
     ----------
-    quimb_mp:
+    quimb_mp : Any
         Representation as a quimb matrix product state
-        or matrix product operator
+        or matrix product operator.
 
     Returns
     -------
-    qutip_qobj:
+    Any
         Representation as a QuTiP object.
     """
     data = quimb_mp.to_dense()
@@ -35,24 +36,30 @@ def convert_quimb_mp_to_qutip_qobj(quimb_mp):
 
     return qutip_qobj
 
-
+ 
 def convert_qutip_ket_to_quimb_mps(
-    qutip_ket,
-    cutoff=None,
-    cutoff_mode="sum2",
-    max_bond=None,
-):
+    qutip_ket: Any,
+    cutoff: float | None = None,
+    cutoff_mode: str = "sum2",
+    max_bond: int | None = None,
+) -> Any:
     """
     Convert a QuTiP ket to a Quimb matrix-product state.
 
     Parameters
     ----------
-    qutip_ket:
+    qutip_ket : Any
         Representation as a QuTiP ket.
+    cutoff : float | None, optional
+        SVD cutoff, by default None.
+    cutoff_mode : str, optional
+        SVD cutoff mode, by default "sum2".
+    max_bond : int | None, optional
+        Maximum bond dimension, by default None.
 
     Returns
     -------
-    quimb_mps:
+    Any
         Representation as a Quimb MPS.
     """
 
@@ -72,3 +79,4 @@ def convert_qutip_ket_to_quimb_mps(
     )
 
     return quimb_mps
+
