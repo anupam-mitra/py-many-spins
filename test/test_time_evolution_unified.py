@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -29,7 +31,7 @@ def _collapse() -> CollapseOperatorSpec:
 
 
 def _spec(
-    tmp_path,
+    tmp_path: Path,
     backend: str = "qutip",
     algorithm: str = "sesolve",
     run_id: str | None = None,
@@ -89,7 +91,7 @@ def _spec(
     )
 
 
-def test_simulation_spec_json_roundtrip(tmp_path) -> None:
+def test_simulation_spec_json_roundtrip(tmp_path: Path) -> None:
     """
     Test that a SimulationSpec can be dumped to and loaded from JSON without loss.
 
@@ -111,7 +113,7 @@ def test_simulation_spec_json_roundtrip(tmp_path) -> None:
     assert loaded == spec
 
 
-def test_simulation_spec_validation_rejects_invalid_methods(tmp_path) -> None:
+def test_simulation_spec_validation_rejects_invalid_methods(tmp_path: Path) -> None:
     """
     Test that SimulationSpec validation rejects unsupported backends, algorithms, and parameters.
 
@@ -138,7 +140,7 @@ def test_simulation_spec_validation_rejects_invalid_methods(tmp_path) -> None:
         SimulationSpec.from_dict(data)
 
 
-def test_simulation_spec_validation_accepts_dissipative_methods(tmp_path) -> None:
+def test_simulation_spec_validation_accepts_dissipative_methods(tmp_path: Path) -> None:
     """
     Test that SimulationSpec validation accepts valid dissipative method configurations.
 
@@ -175,7 +177,7 @@ def test_simulation_spec_validation_accepts_dissipative_methods(tmp_path) -> Non
     )
 
 
-def test_simulation_spec_normalizes_optional_collapse_fields(tmp_path) -> None:
+def test_simulation_spec_normalizes_optional_collapse_fields(tmp_path: Path) -> None:
     """
     Test that SimulationSpec normalizes collapse operator fields during instantiation.
 
@@ -198,7 +200,7 @@ def test_simulation_spec_normalizes_optional_collapse_fields(tmp_path) -> None:
     assert loaded.collapse_operators[0].sites == (1,)
 
 
-def test_run_store_persists_pickle_objects_and_hdf5_arrays(tmp_path) -> None:
+def test_run_store_persists_pickle_objects_and_hdf5_arrays(tmp_path: Path) -> None:
     """
     Test that RunStore correctly persists both pickle and HDF5 payloads.
 
@@ -230,7 +232,7 @@ def test_run_store_persists_pickle_objects_and_hdf5_arrays(tmp_path) -> None:
     )
 
 
-def test_run_store_persists_marginal_results(tmp_path) -> None:
+def test_run_store_persists_marginal_results(tmp_path: Path) -> None:
     """
     Test that RunStore correctly persists marginal result data.
 
@@ -258,7 +260,7 @@ def test_run_store_persists_marginal_results(tmp_path) -> None:
     )
 
 
-def test_runner_builds_shared_model_and_time_grid(tmp_path) -> None:
+def test_runner_builds_shared_model_and_time_grid(tmp_path: Path) -> None:
     """
     Test that the runner correctly builds the shared spin model and time grid.
 
@@ -273,7 +275,7 @@ def test_runner_builds_shared_model_and_time_grid(tmp_path) -> None:
     np.testing.assert_allclose(tlist, [0.0, 0.05])
 
 
-def test_qutip_runner_smoke_and_pickle_persistence(tmp_path) -> None:
+def test_qutip_runner_smoke_and_pickle_persistence(tmp_path: Path) -> None:
     """
     Smoke test for the QuTiP runner and its pickle persistence.
 
@@ -295,7 +297,7 @@ def test_qutip_runner_smoke_and_pickle_persistence(tmp_path) -> None:
     assert store.load_payload(index["records"][0]["storage"]).dims == [[2, 2], [1]]
 
 
-def test_qutip_mesolve_runner_smoke_with_collapse_ops(tmp_path) -> None:
+def test_qutip_mesolve_runner_smoke_with_collapse_ops(tmp_path: Path) -> None:
     """
     Smoke test for the QuTiP mesolve runner with dissipative operators.
 
@@ -320,7 +322,7 @@ def test_qutip_mesolve_runner_smoke_with_collapse_ops(tmp_path) -> None:
     assert store.load_payload(index["records"][0]["storage"]).dims == [[2, 2], [2, 2]]
 
 
-def test_qutip_mcsolve_runner_smoke_with_collapse_ops(tmp_path) -> None:
+def test_qutip_mcsolve_runner_smoke_with_collapse_ops(tmp_path: Path) -> None:
     """
     Smoke test for the QuTiP mcsolve runner with dissipative operators.
 
@@ -347,7 +349,7 @@ def test_qutip_mcsolve_runner_smoke_with_collapse_ops(tmp_path) -> None:
     assert store.load_payload(index["records"][0]["storage"]).dims == [[2, 2], [2, 2]]
 
 
-def test_quspin_runner_smoke_omits_bonddim_labels(tmp_path) -> None:
+def test_quspin_runner_smoke_omits_bonddim_labels(tmp_path: Path) -> None:
     """
     Smoke test for the QuSpin runner.
 
@@ -369,7 +371,7 @@ def test_quspin_runner_smoke_omits_bonddim_labels(tmp_path) -> None:
     assert store.load_payload(index["records"][0]["storage"]).shape == (4,)
 
 
-def test_quimb_mcwf_runner_smoke_with_collapse_ops(tmp_path) -> None:
+def test_quimb_mcwf_runner_smoke_with_collapse_ops(tmp_path: Path) -> None:
     """
     Smoke test for the Quimb MCWF runner with dissipative operators.
 

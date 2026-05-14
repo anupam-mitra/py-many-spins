@@ -355,6 +355,17 @@ class CollapseOperatorSpec:
     sites: Any = "all"
 
     def __post_init__(self) -> None:
+        """
+        Normalize collapse-operator fields after initialization.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         object.__setattr__(self, "operator", self.operator.lower())
         if isinstance(self.sites, int):
             object.__setattr__(self, "sites", (self.sites,))
@@ -709,4 +720,3 @@ class SimulationSpec:
                 % (self.method.backend, self.method.algorithm)
             )
         self.output.validate()
-
