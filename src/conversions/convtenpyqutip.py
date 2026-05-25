@@ -1,20 +1,25 @@
 import itertools
+from typing import Any
 
 import numpy as np
 import tenpy
 import tenpy.linalg.np_conserved, tenpy.networks.mps
 
+ 
+def tenpy_mps_to_probamp(mps: Any) -> np.ndarray:
+    \"\"\"
+    Convert a TenPy MPS to a vector of probability amplitudes.
 
-def tenpy_mps_to_probamp(mps):
-    '''
-    Converts a matrix product state represented
-    using a `tenpy` implementation in `tenpy.networks.mps.MPS`
-    to a ket represented as `qutip.Qobj`
-    by calculating each probability amplitude
+    Parameters
+    ----------
+    mps : Any
+        The TenPy MPS object to convert.
 
-
-    '''
-
+    Returns
+    -------
+    np.ndarray
+        The probability amplitudes as a NumPy array.
+    \"\"\"
     L = mps.L
     dimensions = mps.dim
 
@@ -25,12 +30,14 @@ def tenpy_mps_to_probamp(mps):
 
     for j in range(dim_manybody_state):
         label = ket_labels[j]
-        basis_mps = tenpy.networks.mps.MPS.from_product_state(\
-                        mps.sites, label, "finite")
+        basis_mps = tenpy.networks.mps.MPS.from_product_state(
+            mps.sites, label, \"finite\"
+        )
 
         amps[j] = basis_mps.overlap(mps)
 
     return amps
 
-
+ 
 tenpyMPSToProbAmps = tenpy_mps_to_probamp
+

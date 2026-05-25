@@ -9,7 +9,13 @@ import tenpy.networks.site
 from manybody_backends.tenpy.distancemeasures import hilbertschmidt_distance
 
 ################################################################################
-def test_squared_hilbertschmidt_distance_onespin_rho():
+def test_squared_hilbertschmidt_distance_onespin_rho() -> None:
+    """
+    Test the squared Hilbert-Schmidt distance for single-spin density matrices.
+
+    Verifies the distance between various pure and mixed states of a
+    single spin-1/2 system.
+    """
     site:tenpy.networks.site.SpinHalfSite \
         = tenpy.networks.site.SpinHalfSite(conserve=None)
 
@@ -62,7 +68,13 @@ def test_squared_hilbertschmidt_distance_onespin_rho():
 ################################################################################ 
 
 ################################################################################
-def test_squared_hilbertschmidt_distance_onespin_operator_basis():
+def test_squared_hilbertschmidt_distance_onespin_operator_basis() -> None:
+    """
+    Test the squared Hilbert-Schmidt distance for single-spin operators in the Pauli basis.
+
+    Verifies that the distance between different Pauli operators matches
+    the expected theoretical values.
+    """
     site:tenpy.networks.site.SpinHalfSite \
         = tenpy.networks.site.SpinHalfSite(conserve=None)
 
@@ -82,7 +94,13 @@ def test_squared_hilbertschmidt_distance_onespin_operator_basis():
 ################################################################################
 
 ################################################################################
-def test_squared_hilbertschmidt_distance_twospin_operator_basis():
+def test_squared_hilbertschmidt_distance_twospin_operator_basis() -> None:
+    """
+    Test the squared Hilbert-Schmidt distance for two-spin operators.
+
+    Verifies the distance between various tensor product Pauli operators
+    for a two-site system.
+    """
     site:tenpy.networks.site.SpinHalfSite \
         = tenpy.networks.site.SpinHalfSite(conserve=None)
 

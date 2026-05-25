@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -16,20 +18,55 @@ from time_evolution.specs import (
 )
 
 
-def _collapse():
+def _collapse() -> CollapseOperatorSpec:
+    """
+    Helper to create a standard local spin collapse operator specification.
+
+    Returns
+    -------
+    CollapseOperatorSpec
+        A specification for a sigma-minus collapse operator.
+    """
     return CollapseOperatorSpec.local_spin("sigmam", rate=0.2, sites="all")
 
 
 def _spec(
-    tmp_path,
-    backend="qutip",
-    algorithm="sesolve",
-    run_id=None,
-    collapse_operators=(),
-    evolution_params=None,
-    trunc_params=None,
-    j_xx=0.0,
-):
+    tmp_path: Path,
+    backend: str = "qutip",
+    algorithm: str = "sesolve",
+    run_id: str | None = None,
+    collapse_operators: tuple = (),
+    evolution_params: dict | None = None,
+    trunc_params: dict | None = None,
+    j_xx: float = 0.0,
+) -> SimulationSpec:
+    """
+    Helper to create a SimulationSpec for unified evolution tests.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Temporary directory for output.
+    backend : str, optional
+        The simulation backend to use (default "qutip").
+    algorithm : str, optional
+        The evolution algorithm to use (default "sesolve").
+    run_id : str, optional
+        The identifier for the run.
+    collapse_operators : tuple, optional
+        A tuple of collapse operator specifications (default ()).
+    evolution_params : dict, optional
+        Algorithm-specific evolution parameters.
+    trunc_params : dict, optional
+        Algorithm-specific truncation parameters.
+    j_xx : float, optional
+        Interaction strength for the tilted-field Ising model (default 0.0).
+
+    Returns
+    -------
+    SimulationSpec
+        A fully configured simulation specification.
+    """
     return SimulationSpec(
         model=ModelSpec.tilted_field_ising_1d(
             n_sites=2,
@@ -54,7 +91,13 @@ def _spec(
     )
 
 
-def test_simulation_spec_json_roundtrip(tmp_path):
+def test_simulation_spec_json_roundtrip(tmp_path: Path) -> None:
+    """
+    Test that a SimulationSpec can be dumped to and loaded from JSON without loss.
+
+    Verifies that a spec containing dissipative operators is preserved
+    through the roundtrip.
+    """
     spec = _spec(
         tmp_path,
         backend="qutip",
@@ -70,7 +113,12 @@ def test_simulation_spec_json_roundtrip(tmp_path):
     assert loaded == spec
 
 
-def test_simulation_spec_validation_rejects_invalid_methods(tmp_path):
+def test_simulation_spec_validation_rejects_invalid_methods(tmp_path: Path) -> None:
+    """
+    Test that SimulationSpec validation rejects unsupported backends, algorithms, and parameters.
+
+    Verifies that ValueError is raised when providing invalid method configurations.
+    """
     data = _spec(tmp_path).to_dict()
     data["method"]["backend"] = "bad-backend"
     with pytest.raises(ValueError, match="unsupported backend"):
@@ -92,7 +140,13 @@ def test_simulation_spec_validation_rejects_invalid_methods(tmp_path):
         SimulationSpec.from_dict(data)
 
 
-def test_simulation_spec_validation_accepts_dissipative_methods(tmp_path):
+def test_simulation_spec_validation_accepts_dissipative_methods(tmp_path: Path) -> None:
+    """
+    Test that SimulationSpec validation accepts valid dissipative method configurations.
+
+    Verifies that mesolve, mcsolve, and MCWF specifications are accepted
+    when collapse operators are provided.
+    """
     collapse_operators = (_collapse(),)
 
     SimulationSpec.from_dict(
@@ -123,7 +177,13 @@ def test_simulation_spec_validation_accepts_dissipative_methods(tmp_path):
     )
 
 
-def test_simulation_spec_normalizes_optional_collapse_fields(tmp_path):
+def test_simulation_spec_normalizes_optional_collapse_fields(tmp_path: Path) -> None:
+    """
+    Test that SimulationSpec normalizes collapse operator fields during instantiation.
+
+    Verifies that None is converted to an empty tuple and that site indices
+    are normalized to tuples.
+    """
     data = _spec(tmp_path).to_dict()
     data["collapse_operators"] = None
     loaded = SimulationSpec.from_dict(data)
@@ -140,7 +200,13 @@ def test_simulation_spec_normalizes_optional_collapse_fields(tmp_path):
     assert loaded.collapse_operators[0].sites == (1,)
 
 
-def test_run_store_persists_pickle_objects_and_hdf5_arrays(tmp_path):
+def test_run_store_persists_pickle_objects_and_hdf5_arrays(tmp_path: Path) -> None:
+    """
+    Test that RunStore correctly persists both pickle and HDF5 payloads.
+
+    Verifies that the storage kind is correctly recorded in the index and
+    that payloads can be retrieved and verified.
+    """
     spec = _spec(tmp_path, run_id="store-run")
     store = RunStore(tmp_path, run_id="store-run")
     array_payload = np.asarray([1.0 + 2.0j, 3.0 + 4.0j])
@@ -166,7 +232,13 @@ def test_run_store_persists_pickle_objects_and_hdf5_arrays(tmp_path):
     )
 
 
-def test_run_store_persists_marginal_results(tmp_path):
+def test_run_store_persists_marginal_results(tmp_path: Path) -> None:
+    """
+    Test that RunStore correctly persists marginal result data.
+
+    Verifies that marginal results are saved as HDF5 arrays and that
+    the manifest is updated accordingly.
+    """
     store = RunStore(tmp_path, run_id="marginal-run")
     marginal = np.eye(2, dtype=np.complex128)
     result = MarginalResult(
@@ -188,7 +260,12 @@ def test_run_store_persists_marginal_results(tmp_path):
     )
 
 
-def test_runner_builds_shared_model_and_time_grid(tmp_path):
+def test_runner_builds_shared_model_and_time_grid(tmp_path: Path) -> None:
+    """
+    Test that the runner correctly builds the shared spin model and time grid.
+
+    Verifies that the built model and time array match the specification.
+    """
     spec = _spec(tmp_path)
     model = build_spin_model(spec.model)
     tlist = build_time_grid(spec.time_grid)
@@ -198,7 +275,13 @@ def test_runner_builds_shared_model_and_time_grid(tmp_path):
     np.testing.assert_allclose(tlist, [0.0, 0.05])
 
 
-def test_qutip_runner_smoke_and_pickle_persistence(tmp_path):
+def test_qutip_runner_smoke_and_pickle_persistence(tmp_path: Path) -> None:
+    """
+    Smoke test for the QuTiP runner and its pickle persistence.
+
+    Verifies that a simple evolution can be run and stored, and that
+    the resulting payload is a valid QuTiP object.
+    """
     pytest.importorskip("qutip")
 
     spec = _spec(tmp_path, backend="qutip", algorithm="sesolve", run_id="qutip-run")
@@ -214,7 +297,13 @@ def test_qutip_runner_smoke_and_pickle_persistence(tmp_path):
     assert store.load_payload(index["records"][0]["storage"]).dims == [[2, 2], [1]]
 
 
-def test_qutip_mesolve_runner_smoke_with_collapse_ops(tmp_path):
+def test_qutip_mesolve_runner_smoke_with_collapse_ops(tmp_path: Path) -> None:
+    """
+    Smoke test for the QuTiP mesolve runner with dissipative operators.
+
+    Verifies that the master equation evolution correctly stores metadata
+    and the resulting density matrix.
+    """
     pytest.importorskip("qutip")
 
     spec = _spec(
@@ -233,7 +322,13 @@ def test_qutip_mesolve_runner_smoke_with_collapse_ops(tmp_path):
     assert store.load_payload(index["records"][0]["storage"]).dims == [[2, 2], [2, 2]]
 
 
-def test_qutip_mcsolve_runner_smoke_with_collapse_ops(tmp_path):
+def test_qutip_mcsolve_runner_smoke_with_collapse_ops(tmp_path: Path) -> None:
+    """
+    Smoke test for the QuTiP mcsolve runner with dissipative operators.
+
+    Verifies that the Monte Carlo evolution correctly stores trajectory
+    metadata and the resulting state.
+    """
     pytest.importorskip("qutip")
 
     spec = _spec(
@@ -254,7 +349,13 @@ def test_qutip_mcsolve_runner_smoke_with_collapse_ops(tmp_path):
     assert store.load_payload(index["records"][0]["storage"]).dims == [[2, 2], [2, 2]]
 
 
-def test_quspin_runner_smoke_omits_bonddim_labels(tmp_path):
+def test_quspin_runner_smoke_omits_bonddim_labels(tmp_path: Path) -> None:
+    """
+    Smoke test for the QuSpin runner.
+
+    Verifies that QuSpin evolution (which uses exact states) correctly omits
+    bond-dimension metadata and stores the result as an HDF5 array.
+    """
     pytest.importorskip("quspin")
 
     spec = _spec(tmp_path, backend="quspin", algorithm="evolve", run_id="quspin-run")
@@ -270,7 +371,13 @@ def test_quspin_runner_smoke_omits_bonddim_labels(tmp_path):
     assert store.load_payload(index["records"][0]["storage"]).shape == (4,)
 
 
-def test_quimb_mcwf_runner_smoke_with_collapse_ops(tmp_path):
+def test_quimb_mcwf_runner_smoke_with_collapse_ops(tmp_path: Path) -> None:
+    """
+    Smoke test for the Quimb MCWF runner with dissipative operators.
+
+    Verifies that the MPS-based MCWF evolution correctly records
+    jump events and stores the resulting MPS.
+    """
     pytest.importorskip("quimb.tensor")
 
     spec = _spec(

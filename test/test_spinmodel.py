@@ -10,7 +10,13 @@ from manybody_util.spinmodel import (
 )
 
 
-def test_nearest_neighbor_edges_1d():
+def test_nearest_neighbor_edges_1d() -> None:
+    """
+    Test the generation of nearest-neighbor edges for 1D chains.
+
+    Verifies that edges are correctly generated for both open and periodic
+    boundary conditions.
+    """
     open_edges = nearest_neighbor_edges_1d(4, bc="open")
     assert [(edge.left, edge.right, edge.weight) for edge in open_edges] == [
         (0, 1, 1.0),
@@ -27,7 +33,13 @@ def test_nearest_neighbor_edges_1d():
     ]
 
 
-def test_tilted_field_ising_1d_expands_terms():
+def test_tilted_field_ising_1d_expands_terms() -> None:
+    """
+    Test that the tilted-field Ising model correctly expands into local and two-site terms.
+
+    Verifies the number and values of expanded local and two-site terms for a
+    specific model configuration.
+    """
     model = tilted_field_ising_1d(
         n_sites=4,
         j_xx=0.1,
@@ -63,7 +75,13 @@ def test_tilted_field_ising_1d_expands_terms():
     ]
 
 
-def test_qutip_adapter_constructs_hamiltonian_terms():
+def test_qutip_adapter_constructs_hamiltonian_terms() -> None:
+    """
+    Test that the QuTiP adapter correctly constructs the Hamiltonian.
+
+    Verifies that the generated QuTiP Hamiltonian matches the expected
+    analytical form for a tilted-field Ising model.
+    """
     qutip = pytest.importorskip("qutip")
 
     from manybody_backends.qutip.spinmodel import to_qutip_hamiltonian
@@ -89,7 +107,13 @@ def test_qutip_adapter_constructs_hamiltonian_terms():
     assert np.allclose((hamiltonian - expected).full(), 0.0)
 
 
-def test_qutip_adapter_embeds_noncontiguous_two_site_terms():
+def test_qutip_adapter_embeds_noncontiguous_two_site_terms() -> None:
+    """
+    Test that the QuTiP adapter correctly handles non-contiguous two-site terms.
+
+    Verifies that a two-site term between distant sites is correctly
+    embedded into the full Hilbert space.
+    """
     qutip = pytest.importorskip("qutip")
 
     from manybody_backends.qutip.spinmodel import to_qutip_hamiltonian
@@ -107,7 +131,13 @@ def test_qutip_adapter_embeds_noncontiguous_two_site_terms():
     assert np.allclose((hamiltonian - expected).full(), 0.0)
 
 
-def test_qutip_sesolve_state_history_and_marginal_helpers():
+def test_qutip_sesolve_state_history_and_marginal_helpers() -> None:
+    """
+    Test QuTiP's solve_state_history and local_marginal_density_matrix helpers.
+
+    Verifies that the evolution produces a correct state history and that
+    marginal density matrices are correctly computed.
+    """
     pytest.importorskip("qutip")
 
     from manybody_backends.qutip.spinmodel import to_qutip_hamiltonian
@@ -139,7 +169,13 @@ def test_qutip_sesolve_state_history_and_marginal_helpers():
     assert np.isclose(rho.tr(), 1.0)
 
 
-def test_quspin_adapter_constructs_static_terms():
+def test_quspin_adapter_constructs_static_terms() -> None:
+    """
+    Test that the QuSpin adapter correctly constructs static terms.
+
+    Verifies that the generated static terms for the tilted-field Ising model
+    match the expected QuSpin format.
+    """
     pytest.importorskip("quspin")
 
     from manybody_backends.quspin.spinmodel import (
@@ -161,7 +197,13 @@ def test_quspin_adapter_constructs_static_terms():
     assert hamiltonian.toarray().shape == (2**model.n_sites, 2**model.n_sites)
 
 
-def test_quspin_adapter_embeds_noncontiguous_two_site_terms():
+def test_quspin_adapter_embeds_noncontiguous_two_site_terms() -> None:
+    """
+    Test that the QuSpin adapter correctly handles non-contiguous two-site terms.
+
+    Verifies that a two-site term between distant sites is correctly
+    translated into QuSpin static terms.
+    """
     pytest.importorskip("quspin")
 
     from manybody_backends.quspin.spinmodel import to_quspin_static_terms
@@ -176,7 +218,13 @@ def test_quspin_adapter_embeds_noncontiguous_two_site_terms():
     assert dict(to_quspin_static_terms(model))["xz"] == [[0.7, 2, 0]]
 
 
-def test_quspin_exact_evolution_and_marginal_helpers():
+def test_quspin_exact_evolution_and_marginal_helpers() -> None:
+    """
+    Test QuSpin's solve_state_history and local_marginal_density_matrix helpers.
+
+    Verifies that the exact evolution produces a correct state history and that
+    marginal density matrices are correctly computed.
+    """
     pytest.importorskip("quspin")
 
     from manybody_backends.quspin.spinmodel import (
@@ -212,7 +260,13 @@ def test_quspin_exact_evolution_and_marginal_helpers():
     assert np.isclose(np.trace(rho), 1.0)
 
 
-def test_qutip_quimb_conversion_uses_modern_qobj_api():
+def test_qutip_quimb_conversion_uses_modern_qobj_api() -> None:
+    """
+    Test the conversion between QuTiP and Quimb state representations.
+
+    Verifies that converting a QuTiP ket to a Quimb MPS and back preserves
+    the state within numerical precision.
+    """
     qutip = pytest.importorskip("qutip")
     pytest.importorskip("quimb.tensor")
 
@@ -229,7 +283,13 @@ def test_qutip_quimb_conversion_uses_modern_qobj_api():
     assert np.isclose(abs(ket.overlap(reconstructed)), 1.0)
 
 
-def test_quimb_adapter_builds_spinham1d():
+def test_quimb_adapter_builds_spinham1d() -> None:
+    """
+    Test that the Quimb adapter correctly builds a LocalHam1D.
+
+    Verifies that the builder produces a valid local Hamiltonian for the
+    tilted-field Ising model.
+    """
     pytest.importorskip("quimb")
     pytest.importorskip("quimb.tensor")
 
@@ -241,7 +301,13 @@ def test_quimb_adapter_builds_spinham1d():
     assert builder.build_local_ham(model.n_sites) is not None
 
 
-def test_quimb_tebd_wrapper_uses_modern_api():
+def test_quimb_tebd_wrapper_uses_modern_api() -> None:
+    """
+    Test the Quimb TEBD wrapper's evolution and history tracking.
+
+    Verifies that the wrapper correctly evolves an MPS and returns a
+    history dataframe with expected properties.
+    """
     pytest.importorskip("quimb")
     qtn = pytest.importorskip("quimb.tensor")
 
@@ -270,7 +336,13 @@ def test_quimb_tebd_wrapper_uses_modern_api():
     assert wrapper.tebd.split_opts["max_bond"] == 4
 
 
-def test_quimb_mps_helpers():
+def test_quimb_mps_helpers() -> None:
+    """
+    Test Quimb MPS helper functions for marginals and bond dimension.
+
+    Verifies that the local marginal density matrix and maximum bond
+    dimension are correctly computed for an MPS.
+    """
     qtn = pytest.importorskip("quimb.tensor")
 
     from manybody_backends.quimb.quimbtebd import (
@@ -290,7 +362,13 @@ def test_quimb_mps_helpers():
     assert max_bond_dimension(mps) == 1
 
 
-def test_quimb_mcwf_no_jump_trajectory_preserves_saved_norms():
+def test_quimb_mcwf_no_jump_trajectory_preserves_saved_norms() -> None:
+    """
+    Test a Quimb MCWF trajectory with no jumps.
+
+    Verifies that the trajectory result correctly records states and
+    preserves normalization when no jumps occur.
+    """
     qtn = pytest.importorskip("quimb.tensor")
 
     from manybody_backends.quimb.quimbmpstrajectory import (
@@ -319,7 +397,13 @@ def test_quimb_mcwf_no_jump_trajectory_preserves_saved_norms():
     assert all(np.isclose(state.H @ state, 1.0) for state in result.psi_t)
 
 
-def test_quimb_mcwf_forced_identity_jump_records_event():
+def test_quimb_mcwf_forced_identity_jump_records_event() -> None:
+    """
+    Test that Quimb MCWF correctly records jump events.
+
+    Verifies that forced jumps are correctly captured in the jump times
+    and jump metadata of the trajectory result.
+    """
     qtn = pytest.importorskip("quimb.tensor")
 
     from manybody_backends.quimb.quimbmpstrajectory import eval_single_trajectory
@@ -365,7 +449,13 @@ def test_quimb_mcwf_forced_identity_jump_records_event():
     assert jump_times == [1.0]
 
 
-def test_tenpy_adapter_builds_direct_pauli_chain():
+def test_tenpy_adapter_builds_direct_pauli_chain() -> None:
+    """
+    Test that the TenPy adapter correctly builds a Pauli chain model.
+
+    Verifies that the TenPy model's Hamiltonian expectation value matches
+    the expected value for a specific state.
+    """
     pytest.importorskip("tenpy")
     from tenpy.networks.mps import MPS
 
@@ -385,7 +475,13 @@ def test_tenpy_adapter_builds_direct_pauli_chain():
     assert np.isclose(tenpy_model.H_MPO.expectation_value(psi), 2.0)
 
 
-def test_tenpy_tebd_evolution_and_marginal_helpers():
+def test_tenpy_tebd_evolution_and_marginal_helpers() -> None:
+    """
+    Test TenPy's solve_mps_history and marginal helpers across different algorithms.
+
+    Verifies that TEBD, TDVP, and ExpMPO evolutions produce correct state
+    histories and marginal density matrices.
+    """
     pytest.importorskip("tenpy")
 
     from manybody_backends.tenpy.spinmodel import to_tenpy_model

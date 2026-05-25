@@ -3,21 +3,37 @@ import logging
 import sys
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
-
+ 
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 
 from time_evolution.config_io import load_simulation_spec
 from time_evolution.runner import run_and_store
 
-
+ 
 logging.basicConfig(
     format="%(asctime)s: %(levelname)s: %(message)s",
     level=logging.INFO,
 )
 
+ 
+def _apply_overrides(spec: Any, args: Any) -> Any:
+    """
+    Apply CLI overrides to the simulation specification.
 
-def _apply_overrides(spec, args):
+    Parameters
+    ----------
+    spec : Any
+        The original simulation specification.
+    args : Any
+        The command-line arguments.
+
+    Returns
+    -------
+    Any
+        The updated simulation specification.
+    """
     model = spec.model
     if args.systemsize is not None:
         model = replace(model, n_sites=args.systemsize)
@@ -37,8 +53,11 @@ def _apply_overrides(spec, args):
     )
     return replace(spec, model=model, method=method)
 
-
-def main():
+ 
+def main() -> None:
+    """
+    Main entry point for the many-spin evolution workflow.
+    """
     argument_parser = argparse.ArgumentParser(
         prog="manyspin_evolve",
         description="Run a JSON-configured many-spin evolution.",
@@ -62,6 +81,7 @@ def main():
     logging.info("Saved run %s with %d states", store.run_dir, len(index["records"]))
     print(store.run_dir)
 
-
+ 
 if __name__ == "__main__":
     main()
+

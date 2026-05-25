@@ -4,6 +4,7 @@ import json
 import math
 import sys
 from pathlib import Path
+from typing import Any, Tuple, List, Dict
 
 import h5py
 import matplotlib.pyplot as plt
@@ -49,7 +50,22 @@ DESCRIPTION_BY_DATASET = {
 ORDER_BY_DATASET = {dataset: order for order, dataset, _ in OBSERVABLE_SPECS}
 
 
-def _kron_power(operator, order):
+def _kron_power(operator: np.ndarray, order: int) -> np.ndarray:
+    """
+    Compute the n-fold Kronecker power of an operator.
+
+    Parameters
+    ----------
+    operator : np.ndarray
+        The operator to power.
+    order : int
+        The order of the power.
+
+    Returns
+    -------
+    np.ndarray
+        The resulting operator.
+    """
     result = np.asarray([[1.0]], dtype=complex)
     for _ in range(order):
         result = np.kron(result, operator)
@@ -62,14 +78,48 @@ Z_OPERATORS = {
 }
 
 
-def _real_scalar(value, label):
+def _real_scalar(value: Any, label: str) -> float:
+    """
+    Ensure a value is a real scalar and return it.
+
+    Parameters
+    ----------
+    value : Any
+        The value to check.
+    label : str
+        A label for the value (used in error messages).
+
+    Returns
+    -------
+    float
+        The real part of the value.
+
+    Raises
+    ------
+    ValueError
+        If the value has a non-negligible imaginary part.
+    """
     value = complex(np.asarray(value).reshape(()))
     if abs(value.imag) > 1e-8:
         raise ValueError("%s has non-negligible imaginary part %r" % (label, value))
     return float(value.real)
 
 
-def _asarray(value):
+
+def _asarray(value: Any) -> np.ndarray:
+    """
+    Convert a state or operator to a NumPy array.
+
+    Parameters
+    ----------
+    value : Any
+        The object to convert.
+
+    Returns
+    -------
+    np.ndarray
+        The converted NumPy array.
+    """
     if hasattr(value, "to_ndarray"):
         return value.to_ndarray()
     if hasattr(value, "full"):
@@ -77,12 +127,48 @@ def _asarray(value):
     return np.asarray(value)
 
 
-def _density_expectation(rho, operator, label):
+
+def _density_expectation(rho: Any, operator: np.ndarray, label: str) -> float:
+    """
+    Compute the expectation value of an operator given a density matrix.
+
+    Parameters
+    ----------
+    rho : Any
+        The density matrix.
+    operator : np.ndarray
+        The operator.
+    label : str
+        A label for the value (used in error messages).
+
+    Returns
+    -------
+    float
+        The expectation value.
+    """
     rho_array = _asarray(rho)
     return _real_scalar(np.trace(rho_array @ operator), label)
 
 
-def _run_records(base_dir):
+def _run_records(base_dir: Path) -> List[Dict[str, Any]]:
+    """
+    Scan the runs directory and collect records of available simulations.
+
+    Parameters
+    ----------
+    base_dir : Path
+        The base directory containing the runs folder.
+
+    Returns
+    -------
+    List[Dict[str, Any]]
+        A list of run records.
+
+    Raises
+    ------
+    ValueError
+        If the runs directory does not exist.
+    """
     runs_dir = base_dir / "runs"
     if not runs_dir.exists():
         raise ValueError("no runs directory found at %s" % (runs_dir,))
@@ -117,7 +203,28 @@ def _run_records(base_dir):
     return records
 
 
-def _select_latest_runs(base_dir, run_specs):
+
+def _select_latest_runs(base_dir: Path, run_specs: Tuple[Dict[str, str], ...]) -> Dict[str, Dict[str, Any]]:
+    """
+    Select the latest run for each specified run configuration.
+
+    Parameters
+    ----------
+    base_dir : Path
+        The base directory containing the runs folder.
+    run_specs : Tuple[Dict[str, str], ...]
+        The run configurations to look for.
+
+    Returns
+    -------
+    Dict[str, Dict[str, Any]]
+        A mapping from label to the latest run record.
+
+    Raises
+    ------
+    ValueError
+        If no run matches a specified configuration.
+    """
     records = _run_records(base_dir)
     selected = {}
     for run_spec in run_specs:
@@ -139,7 +246,23 @@ def _select_latest_runs(base_dir, run_specs):
     return selected
 
 
-def _load_states(base_dir, run_record):
+
+def _load_states(base_dir: Path, run_record: Dict[str, Any]) -> Tuple[np.ndarray, List[Any]]:
+    """
+    Load time grid and states from a run's storage.
+
+    Parameters
+    ----------
+    base_dir : Path
+        The base directory.
+    run_record : Dict[str, Any]
+        The run record.
+
+    Returns
+    -------
+    Tuple[np.ndarray, List[Any]]
+        The time grid and the list of evolved states.
+    """
     store = RunStore(base_dir, run_id=run_record["run_id"])
     index = store.load_evolution_index()
     times = np.asarray([record["time"] for record in index["records"]], dtype=float)
@@ -147,7 +270,25 @@ def _load_states(base_dir, run_record):
     return times, states
 
 
-def _normalized_marginal_observables(states, n_sites, local_marginal):
+
+def _normalized_marginal_observables(states: List[Any], n_sites: int, local_marginal: Any) -> Dict[str, np.ndarray]:
+    """
+    Compute normalized marginal observables for all states.
+
+    Parameters
+    ----------
+    states : List[Any]
+        The evolved states.
+    n_sites : int
+        The number of sites.
+    local_marginal : Any
+        A function that computes the local marginal density matrix.
+
+    Returns
+    -------
+    Dict[str, np.ndarray]
+        A dictionary mapping dataset labels to arrays of values.
+    """
     observables = {dataset: [] for _, dataset, _ in OBSERVABLE_SPECS}
     for state in states:
         for order, dataset, _ in OBSERVABLE_SPECS:
@@ -170,7 +311,23 @@ def _normalized_marginal_observables(states, n_sites, local_marginal):
     }
 
 
-def _qutip_observables(states, n_sites):
+
+def _qutip_observables(states: List[Any], n_sites: int) -> Dict[str, np.ndarray]:
+    """
+    Compute observables using the QuTiP backend.
+
+    Parameters
+    ----------
+    states : List[Any]
+        The evolved states.
+    n_sites : int
+        The number of sites.
+
+    Returns
+    -------
+    Dict[str, np.ndarray]
+        The computed observables.
+    """
     from manybody_backends.qutip.timeevolution import local_marginal_density_matrix
 
     return _normalized_marginal_observables(
@@ -180,7 +337,22 @@ def _qutip_observables(states, n_sites):
     )
 
 
-def _quspin_observables(states, n_sites):
+def _quspin_observables(states: List[Any], n_sites: int) -> Dict[str, np.ndarray]:
+    """
+    Compute observables using the QuSpin backend.
+
+    Parameters
+    ----------
+    states : List[Any]
+        The evolved states.
+    n_sites : int
+        The number of sites.
+
+    Returns
+    -------
+    Dict[str, np.ndarray]
+        The computed observables.
+    """
     from manybody_backends.quspin.timeevolution import (
         local_marginal_density_matrix,
         spinhalf_basis,
@@ -194,7 +366,30 @@ def _quspin_observables(states, n_sites):
     )
 
 
-def _quimb_observables(states, n_sites):
+    basis = spinhalf_basis(n_sites)
+    return _normalized_marginal_observables(
+        states,
+        n_sites,
+        lambda state, sites: local_marginal_density_matrix(state, sites, basis),
+    )
+
+
+def _quimb_observables(states: List[Any], n_sites: int) -> Dict[str, np.ndarray]:
+    """
+    Compute observables using the Quimb backend.
+
+    Parameters
+    ----------
+    states : List[Any]
+        The evolved states.
+    n_sites : int
+        The number of sites.
+
+    Returns
+    -------
+    Dict[str, np.ndarray]
+        The computed observables.
+    """
     from manybody_backends.quimb.quimbtebd import local_marginal_density_matrix
 
     return _normalized_marginal_observables(
@@ -204,7 +399,22 @@ def _quimb_observables(states, n_sites):
     )
 
 
-def _tenpy_observables(states, n_sites):
+def _tenpy_observables(states: List[Any], n_sites: int) -> Dict[str, np.ndarray]:
+    """
+    Compute observables using the TenPy backend.
+
+    Parameters
+    ----------
+    states : List[Any]
+        The evolved states.
+    n_sites : int
+        The number of sites.
+
+    Returns
+    -------
+    Dict[str, np.ndarray]
+        The computed observables.
+    """
     observables = {dataset: [] for _, dataset, _ in OBSERVABLE_SPECS}
     for state in states:
         for order, dataset, _ in OBSERVABLE_SPECS:
@@ -227,7 +437,23 @@ def _tenpy_observables(states, n_sites):
     }
 
 
-def _observable_data(base_dir, selected_runs):
+
+def _observable_data(base_dir: Path, selected_runs: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """
+    Collect observable data for selected runs.
+
+    Parameters
+    ----------
+    base_dir : Path
+        The base directory.
+    selected_runs : Dict[str, Dict[str, Any]]
+        The mapping from label to run record.
+
+    Returns
+    -------
+    Dict[str, Dict[str, Any]]
+        The collected observable data.
+    """
     calculators = {
         "qutip": _qutip_observables,
         "quspin": _quspin_observables,
@@ -249,15 +475,42 @@ def _observable_data(base_dir, selected_runs):
     return data
 
 
-def _json_attr(value):
+
+def _json_attr(value: Any) -> str:
+    """
+    Convert a value to a JSON string for HDF5 attributes.
+
+    Parameters
+    ----------
+    value : Any
+        The value to convert.
+
+    Returns
+    -------
+    str
+        The JSON representation of the value.
+    """
     if isinstance(value, (dict, list, tuple)):
         return json.dumps(value, sort_keys=True)
     if value is None:
         return ""
-    return value
+    return str(value)
 
 
-def _write_hdf5(output_path, data, selected_runs):
+
+def _write_hdf5(output_path: Path, data: Dict[str, Dict[str, Any]], selected_runs: Dict[str, Dict[str, Any]]) -> None:
+    """
+    Write the collected observable data to an HDF5 file.
+
+    Parameters
+    ----------
+    output_path : Path
+        The output path.
+    data : Dict[str, Dict[str, Any]]
+        The collected data.
+    selected_runs : Dict[str, Dict[str, Any]]
+        The selected run records.
+    """
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with h5py.File(output_path, "w") as h5file:
         h5file.attrs["model"] = "tilted_field_ising_1d"
@@ -290,8 +543,23 @@ def _write_hdf5(output_path, data, selected_runs):
                 group.attrs[key] = _json_attr(value)
 
 
-def _plot_label(run_spec, data):
-    """Build the legend label from data metadata stored alongside observables."""
+
+def _plot_label(run_spec: Dict[str, str], data: Dict[str, Dict[str, Any]]) -> str:
+    """
+    Build the legend label from data metadata stored alongside observables.
+
+    Parameters
+    ----------
+    run_spec : Dict[str, str]
+        The run specification.
+    data : Dict[str, Dict[str, Any]]
+        The collected data.
+
+    Returns
+    -------
+    str
+        The legend label.
+    """
     entry = data[run_spec["label"]]
     backend = entry["backend"]
     algorithm = entry["algorithm"]
@@ -321,9 +589,18 @@ ERROR_RUNS = (
 )
 
 
-def _write_error_plot(output_path, data):
-    """4-row × 2-col grid: rows = observables, cols = references.
-    Each panel shows |method − reference| vs time on a log scale."""
+def _write_error_plot(output_path: Path, data: Dict[str, Dict[str, Any]]) -> None:
+    """
+    4-row × 2-col grid: rows = observables, cols = references.
+    Each panel shows |method − reference| vs time on a log scale.
+
+    Parameters
+    ----------
+    output_path : Path
+        The output path.
+    data : Dict[str, Dict[str, Any]]
+        The collected data.
+    """
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     obs_keys = [ds for _, ds, _ in OBSERVABLE_SPECS]
@@ -380,7 +657,18 @@ def _write_error_plot(output_path, data):
     plt.close(fig)
 
 
-def _write_plot(output_path, data):
+
+def _write_plot(output_path: Path, data: Dict[str, Dict[str, Any]]) -> None:
+    """
+    Plot the observables vs time for the same set of runs.
+
+    Parameters
+    ----------
+    output_path : Path
+        The output path.
+    data : Dict[str, Dict[str, Any]]
+        The collected data.
+    """
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(4, 1, figsize=(8.0, 9.5), sharex=True)
 
@@ -410,7 +698,11 @@ def _write_plot(output_path, data):
     plt.close(fig)
 
 
-def main():
+
+def main() -> None:
+    """
+    Main entry point for plotting TFIM observables.
+    """
     parser = argparse.ArgumentParser(
         description="Plot and persist TFIM observables from unified runs.",
     )
@@ -440,6 +732,7 @@ def main():
     print(output_h5)
     print(output_plot)
     print(output_error_plot)
+
 
 
 if __name__ == "__main__":
